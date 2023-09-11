@@ -13,6 +13,7 @@
 
 #include "address.h"
 #include "config.h"
+#include "connection.h"
 
 #include <stdbool.h>
 
@@ -23,6 +24,14 @@ extern "C" {
 void run_node(void *const handle,
               volatile bool *const keep_running,
               const struct mixnet_node_config c);
+
+void init_node(struct mixnet_node_config c,
+               mixnet_address* mixnet_addr,
+               mixnet_packet_stp *config,
+               mixnet_address *neighbor_addrs,
+               bool *port_status);
+
+void run_stp(mixnet_packet_stp *config, mixnet_packet *packet, bool *port_status, int port_id);
 
 #ifdef __cplusplus
 }

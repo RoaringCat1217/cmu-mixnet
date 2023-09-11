@@ -3,4 +3,5 @@
 build/
 tags
 autograder.zip
-/cmake-build-debug
+cmake-build-debug/
+build/
