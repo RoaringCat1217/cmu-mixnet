@@ -145,7 +145,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     }
 
     // copy the root's "hello" message to all other neighbors
-    if (stp_curr_state.root_address != node_config.node_addr && stp_packet->node_address == stp_curr_state.root_address)
+    if (stp_curr_state.root_address != node_config.node_addr && stp_packet->node_address == stp_curr_state.root_address) {
         for (uint8_t port = 0; port < node_config.num_neighbors; port++)
             if (port != port_recv) {
                 void *sendbuf = malloc(sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
@@ -160,6 +160,9 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
                     }
                 }
             }
+        // reset timer
+        timer = get_timestamp();
+    }
 
     // notify neighbors if anything changes
     if (notify && stp_send() < 0)
@@ -176,7 +179,8 @@ int stp_hello() {
     if (stp_curr_state.root_address == node_config.node_addr && interval >= node_config.root_hello_interval_ms) {
         if (stp_send() < 0)
             return -1;
-    } else if (interval >= node_config.reelection_interval_ms) {
+        timer = now;
+    } else if (stp_curr_state.root_address != node_config.node_addr && interval >= node_config.reelection_interval_ms) {
         // reelect
         stp_curr_state = (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
         stp_nexthop = NO_NEXTHOP;
