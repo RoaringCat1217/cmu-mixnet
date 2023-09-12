@@ -12,6 +12,7 @@
 
 #include "connection.h"
 #include "packet.h"
+#include "logger.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,7 +64,7 @@ int mixnet_send_loop(void *handle, const uint8_t port, mixnet_packet *packet) {
 }
 
 void init_node() {
-    neighbor_addrs = (mixnet_address *)malloc(node_config.num_neighbors * sizeof(mixnet_address));
+    neighbor_addrs = malloc(node_config.num_neighbors * sizeof(mixnet_address));
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
         neighbor_addrs[port] = ADDR_UNK;
     }
@@ -83,6 +84,8 @@ void init_node() {
     }
 
     timer = 0;
+
+    logger_init(true, node_config.node_addr);
 }
 
 void free_node() {
@@ -96,6 +99,8 @@ int stp_send() {
     int nsent = 0;
 
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
+        if (port == port_recv)
+            continue;
         void *sendbuf = malloc(sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
 
         mixnet_packet *headerp = (mixnet_packet *)sendbuf;
@@ -179,7 +184,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
 
     // notify neighbors if anything changes
     if (notify && stp_send() < 0) {
-        fprintf(stderr, "stp_recv's notify error\n");
+        print_err("stp_recv's notify error");
         return -1;
     }
     
@@ -211,13 +216,14 @@ int stp_hello() {
     return 0;
 }
 
-int stp_flood(int source_port) {
+int stp_flood() {
     int ret = 0;
 
     for (uint8_t port_num = 0; port_num < node_config.num_neighbors; ++port_num) {
-        if (port_num != source_port && port_open[port_num]) {
+        if (port_num != port_recv && port_open[port_num]) {
+            print("flood to port %d", port_num);
+            
             void *sendbuf = malloc(sizeof(mixnet_packet));
-
             mixnet_packet *headerp = (mixnet_packet *) sendbuf;
             headerp->total_size = sizeof(mixnet_packet);
             headerp->type = PACKET_TYPE_FLOOD;
@@ -231,14 +237,10 @@ int stp_flood(int source_port) {
     return 0;
 }
 
+// send the current received packet to user
 int send_to_user() {
-    void *sendbuf = malloc(sizeof(mixnet_packet));
-
-    mixnet_packet *headerp = (mixnet_packet *) sendbuf;
-    headerp->total_size = sizeof(mixnet_packet);
-    headerp->type = PACKET_TYPE_FLOOD;
-
-    if (mixnet_send_loop(myhandle, node_config.num_neighbors, sendbuf) < 0)
+    need_free = false;
+    if (mixnet_send_loop(myhandle, node_config.num_neighbors, packet_recv_ptr) < 0)
         return -1;
     return 0;
 }
@@ -249,41 +251,48 @@ void run_node(void *const handle,
     
     myhandle = handle;
     node_config = c;
+    print("%d neighbors", node_config.num_neighbors);
     init_node();
 
     while(*keep_running) {
         int received = mixnet_recv(myhandle, &port_recv, &packet_recv_ptr);
         if (received > 0) {
+            print("received a packet from port %d", port_recv);
             need_free = true;
 
             if (port_recv == node_config.num_neighbors) {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_FLOOD:
-                    stp_flood(port_recv);
+                    if (stp_flood() < 0)
+                        print_err("received from user, error in stp_flood");
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
                     break;
                 default:
-                    fprintf(stderr, "wrong packet type received");
+                    print_err("wrong packet type received");
                 }
             } else {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
                     if (stp_recv((mixnet_packet_stp *) packet_recv_ptr->payload) < 0)
-                        fprintf(stderr, "error in stp_recv()");
+                        print_err("error in stp_recv");
                     break;
                 case PACKET_TYPE_LSA:
                     // TODO: update local link state, compute shortest paths, 
                     //       and broadcast along the spanning tree
                     break;
                 case PACKET_TYPE_FLOOD:
-                    stp_flood(port_recv);
-                    send_to_user();
+                    if (send_to_user() < 0)
+                        print_err("error in send_to_user");
+                    if (stp_flood() < 0)
+                        print_err("received from neighbors, error in stp_flood");
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
                     break;
+                default:
+                    print_err("wrong packet type received");
                 }
             }
             
@@ -292,7 +301,7 @@ void run_node(void *const handle,
         }
 
         if (stp_hello() < 0)
-            fprintf(stderr, "error in stp_hello()");
+            print_err("error in stp_hello");
     }
 
     free_node();
