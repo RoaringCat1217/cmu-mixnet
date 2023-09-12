@@ -52,7 +52,7 @@ unsigned long get_timestamp() {
 }
 
 void init_node() {
-    neighbor_addrs = (mixnet_address *)malloc(node_config.num_neighbors * sizeof(mixnet_address));
+    neighbor_addrs = malloc(node_config.num_neighbors * sizeof(mixnet_address));
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
         neighbor_addrs[port] = ADDR_UNK;
     }
@@ -84,6 +84,8 @@ int stp_send() {
     int nsent = 0;
 
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
+        if (port == port_recv)
+            continue;
         void *sendbuf = malloc(sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
 
         mixnet_packet *headerp = (mixnet_packet *)sendbuf;
@@ -155,27 +157,21 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     }
 
     // copy the root's "hello" message to all other neighbors
-    if (stp_curr_state.root_address != node_config.node_addr && stp_packet->node_address == stp_curr_state.root_address) {
-        for (uint8_t port = 0; port < node_config.num_neighbors; port++)
-            if (port != port_recv) {
-                void *sendbuf = malloc(sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
-                memcpy(sendbuf, stp_packet, sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
-                int ret;
-                while (true) {
-                    ret = mixnet_send(myhandle, port, sendbuf);
-                    if (ret < 0)
-                        return -1;
-                    if (ret == 1) {
-                        break;
-                    }
-                }
-            }
+    if (stp_curr_state.root_address != node_config.node_addr
+        && stp_packet->root_address == stp_curr_state.root_address
+        && port_recv == stp_nexthop) {
+        if (stp_send() < 0) {
+            fprintf(stderr, "stp_recv's hello relay error\n");
+            return -1;
+        }
+        notify = false;
         // reset timer
         timer = get_timestamp();
     }
 
     // notify neighbors if anything changes
     if (notify && stp_send() < 0) {
+        fprintf(stderr, "stp_recv's notify error\n");
         return -1;
     }
     
@@ -210,6 +206,7 @@ int stp_flood() {
     int ret = 0;
 
     for (uint8_t port_num = 0; port_num < node_config.num_neighbors; ++port_num) {
+        // TODO: check port num
         if (port_open[port_num]) {
             void *sendbuf = malloc(sizeof(mixnet_packet));
 
@@ -263,19 +260,20 @@ void run_node(void *const handle,
                 case PACKET_TYPE_DATA:
                     break;
                 default:
-                    fprintf(stderr, "wrong packet type received");
+                    fprintf(stderr, "wrong packet type received\n");
                 }
             } else {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
                     if (stp_recv((mixnet_packet_stp *) packet_recv_ptr->payload) < 0)
-                        fprintf(stderr, "error in stp_recv()");
+                        fprintf(stderr, "error in stp_recv()\n");
                     break;
                 case PACKET_TYPE_LSA:
                     // TODO: update local link state, compute shortest paths, 
                     //       and broadcast along the spanning tree
                     break;
                 default:
+                    stp_flood();
                     send_to_user();
                 }
             }
@@ -285,7 +283,7 @@ void run_node(void *const handle,
         }
 
         if (stp_hello() < 0)
-            fprintf(stderr, "error in stp_hello()");
+            fprintf(stderr, "error in stp_hello()\n");
     }
 
     free_node();
