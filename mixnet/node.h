@@ -15,6 +15,7 @@
 #include "config.h"
 
 #include <stdbool.h>
+#include "packet.h"
 
 #ifdef __cplusplus
 extern "C" {
