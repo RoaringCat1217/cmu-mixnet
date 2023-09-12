@@ -20,9 +20,16 @@
 extern "C" {
 #endif
 
-void run_node(void *const handle,
-              volatile bool *const keep_running,
-              const struct mixnet_node_config c);
+void init_node();
+void free_node();
+void run_node(void *const handle, volatile bool *const keep_running, const struct mixnet_node_config c);
+
+int stp_send();
+int stp_recv(mixnet_packet_stp *stp_packet);
+int stp_hello();
+
+unsigned long get_timestamp();
+
 
 #ifdef __cplusplus
 }
