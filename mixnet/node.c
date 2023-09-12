@@ -47,22 +47,29 @@ unsigned long get_timestamp() {
     struct timeval te; 
     gettimeofday(&te, NULL); 
     unsigned long ms = te.tv_sec * 1000UL + te.tv_usec / 1000UL;
+
     return ms;
 }
 
 void init_node() {
     neighbor_addrs = (mixnet_address *)malloc(node_config.num_neighbors * sizeof(mixnet_address));
-    for (uint8_t port = 0; port < node_config.num_neighbors; port++)
+    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
         neighbor_addrs[port] = ADDR_UNK;
+    }
     
     stp_curr_state = (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
+
     stp_nexthop = NO_NEXTHOP;
-    port_open = (bool *)malloc(node_config.num_neighbors * sizeof(bool));
-    for (uint8_t port = 0; port < node_config.num_neighbors; port++)
+    
+    port_open = malloc(node_config.num_neighbors * sizeof(bool));
+    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
         port_open[port] = true;
-    dist_to_root = (int *)malloc(sizeof(int) * node_config.num_neighbors);
-    for (uint8_t port = 0; port < node_config.num_neighbors; port++)
+    }
+    
+    dist_to_root = malloc(sizeof(int) * node_config.num_neighbors);
+    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
         dist_to_root[port] = INT_MAX;
+    }
     timer = 0;
 }
 
@@ -70,20 +77,22 @@ void free_node() {
     free(neighbor_addrs);
     free(port_open);
     free(dist_to_root);
-
 }
 
 // send STP packets to all neighbors
 int stp_send() {
     int nsent = 0;
+
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
         void *sendbuf = malloc(sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
+
         mixnet_packet *headerp = (mixnet_packet *)sendbuf;
         headerp->total_size = sizeof(mixnet_packet) + sizeof(mixnet_packet_stp);
         headerp->type = PACKET_TYPE_STP;
 
         mixnet_packet_stp *payloadp = (mixnet_packet_stp *)((char *)sendbuf + sizeof(mixnet_packet));
         *payloadp = stp_curr_state;
+
         int ret;
         while (true) {
             ret = mixnet_send(myhandle, port, headerp);
@@ -95,6 +104,7 @@ int stp_send() {
             }
         }
     }
+
     return nsent;
 }
 
@@ -165,8 +175,9 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     }
 
     // notify neighbors if anything changes
-    if (notify && stp_send() < 0)
+    if (notify && stp_send() < 0) {
         return -1;
+    }
     
     return 0;
     
@@ -176,6 +187,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
 int stp_hello() {
     unsigned long now = get_timestamp();
     unsigned long interval = now - timer;
+
     if (stp_curr_state.root_address == node_config.node_addr && interval >= node_config.root_hello_interval_ms) {
         if (stp_send() < 0)
             return -1;
@@ -194,6 +206,41 @@ int stp_hello() {
     return 0;
 }
 
+int stp_flood() {
+    int ret = 0;
+
+    for (uint8_t port_num = 0; port_num < node_config.num_neighbors; ++port_num) {
+        if (port_open[port_num]) {
+            void *sendbuf = malloc(sizeof(mixnet_packet));
+
+            mixnet_packet *headerp = (mixnet_packet *) sendbuf;
+            headerp->total_size = sizeof(mixnet_packet);
+            headerp->type = PACKET_TYPE_FLOOD;
+
+            ret = mixnet_send(myhandle, port_num, sendbuf);
+            if (ret < 0)
+                return -1;
+        }
+    }
+
+    return 0;
+}
+
+int send_to_user() {
+    int ret = 0;
+    void *sendbuf = malloc(sizeof(mixnet_packet));
+
+    mixnet_packet *headerp = (mixnet_packet *) sendbuf;
+    headerp->total_size = sizeof(mixnet_packet);
+    headerp->type = PACKET_TYPE_FLOOD;
+
+    ret = mixnet_send(myhandle, node_config.num_neighbors, sendbuf);
+    if (ret < 0)
+        return -1;
+    
+    return 0;
+}
+
 void run_node(void *const handle,
               volatile bool *const keep_running,
               const struct mixnet_node_config c) {
@@ -206,14 +253,33 @@ void run_node(void *const handle,
         int received = mixnet_recv(myhandle, &port_recv, &packet_recv_ptr);
         if (received > 0) {
             need_free = true;
-            switch (packet_recv_ptr->type) {
+
+            if (port_recv == node_config.num_neighbors) {
+                switch (packet_recv_ptr->type) {
+                case PACKET_TYPE_FLOOD:
+                    stp_flood();
+                    break;
+                case PACKET_TYPE_PING:
+                case PACKET_TYPE_DATA:
+                    break;
+                default:
+                    fprintf(stderr, "wrong packet type received");
+                }
+            } else {
+                switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
                     if (stp_recv((mixnet_packet_stp *) packet_recv_ptr->payload) < 0)
                         fprintf(stderr, "error in stp_recv()");
                     break;
+                case PACKET_TYPE_LSA:
+                    // TODO: update local link state, compute shortest paths, 
+                    //       and broadcast along the spanning tree
+                    break;
                 default:
-                    fprintf(stderr, "received unsupported packet, dropped");
+                    send_to_user();
+                }
             }
+            
             if (need_free)
                 free(packet_recv_ptr);
         }
