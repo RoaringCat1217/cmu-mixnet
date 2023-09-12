@@ -12,6 +12,7 @@
 
 #include "connection.h"
 #include "packet.h"
+#include "logger.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,6 +83,8 @@ void init_node() {
         dist_to_root[port] = INT_MAX;
     }
     timer = 0;
+
+    logger_init(true, node_config.node_addr);
 }
 
 void free_node() {
@@ -167,7 +170,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
         && stp_packet->root_address == stp_curr_state.root_address
         && port_recv == stp_nexthop) {
         if (stp_send() < 0) {
-            fprintf(stderr, "stp_recv's hello relay error\n");
+            print_err("stp_recv's hello relay error");
             return -1;
         }
         notify = false;
@@ -177,7 +180,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
 
     // notify neighbors if anything changes
     if (notify && stp_send() < 0) {
-        fprintf(stderr, "stp_recv's notify error\n");
+        print_err("stp_recv's notify error");
         return -1;
     }
     
@@ -214,7 +217,7 @@ int stp_flood() {
 
     for (uint8_t port_num = 0; port_num < node_config.num_neighbors; ++port_num) {
         if (port_open[port_num]) {
-            printf("[node %d]: flood to port %d", node_config.node_addr, port_num);
+            print("flood to port %d", port_num);
             void *sendbuf = malloc(sizeof(mixnet_packet));
 
             mixnet_packet *headerp = (mixnet_packet *) sendbuf;
@@ -244,45 +247,46 @@ void run_node(void *const handle,
     
     myhandle = handle;
     node_config = c;
-    printf("[node %d]: %d neighbors\n", node_config.node_addr, node_config.num_neighbors);
+    print("%d neighbors", node_config.num_neighbors);
     init_node();
 
     while(*keep_running) {
         int received = mixnet_recv(myhandle, &port_recv, &packet_recv_ptr);
         if (received > 0) {
-            printf("[node %d]: received a packet from port %d\n", node_config.node_addr, port_recv);
+            print("received a packet from port %d", port_recv);
             need_free = true;
 
             if (port_recv == node_config.num_neighbors) {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_FLOOD:
                     if (stp_flood() < 0)
-                        fprintf(stderr, "[node %d]: received from user, error in stp_flood\n", node_config.node_addr);
+                        print_err("received from user, error in stp_flood");
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
                     break;
                 default:
-                    fprintf(stderr, "[node %d]: wrong packet type received\n", node_config.node_addr);
+                    print_err("wrong packet type received");
                 }
             } else {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
                     if (stp_recv((mixnet_packet_stp *) packet_recv_ptr->payload) < 0)
-                        fprintf(stderr, "[node %d]: error in stp_recv\n", node_config.node_addr);
+                        print_err("error in stp_recv");
                     break;
                 case PACKET_TYPE_LSA:
                     // TODO: update local link state, compute shortest paths, 
                     //       and broadcast along the spanning tree
                     break;
                 case PACKET_TYPE_FLOOD:
+
                     if (send_to_user() < 0)
-                        fprintf(stderr, "[node %d]: error in send_to_user\n", node_config.node_addr);
+                        print_err("error in send_to_user");
                     if (stp_flood() < 0)
-                        fprintf(stderr, "[node %d]: received from neighbors, error in stp_flood\n", node_config.node_addr);
+                        print_err("received from neighbors, error in stp_flood");
                     break;
                 default:
-                    fprintf(stderr, "[node %d]: wrong packet type received\n", node_config.node_addr);
+                    print_err("wrong packet type received");
                 }
             }
             
@@ -291,7 +295,7 @@ void run_node(void *const handle,
         }
 
         if (stp_hello() < 0)
-            fprintf(stderr, "[node %d]: error in stp_hello()\n", node_config.node_addr);
+            print_err("error in stp_hello");
     }
 
     free_node();
