@@ -51,6 +51,17 @@ unsigned long get_timestamp() {
     return ms;
 }
 
+int mixnet_send_loop(void *handle, const uint8_t port, mixnet_packet *packet) {
+    while (true) {
+        int ret = mixnet_send(handle, port, packet);
+        if (ret < 0)
+            return -1;
+        if (ret > 0)
+            break;
+    }
+    return 1;
+}
+
 void init_node() {
     neighbor_addrs = (mixnet_address *)malloc(node_config.num_neighbors * sizeof(mixnet_address));
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
@@ -70,6 +81,7 @@ void init_node() {
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
         dist_to_root[port] = INT_MAX;
     }
+
     timer = 0;
 }
 
@@ -93,16 +105,11 @@ int stp_send() {
         mixnet_packet_stp *payloadp = (mixnet_packet_stp *)((char *)sendbuf + sizeof(mixnet_packet));
         *payloadp = stp_curr_state;
 
-        int ret;
-        while (true) {
-            ret = mixnet_send(myhandle, port, headerp);
-            if (ret < 0)
-                return -1;
-            if (ret == 1) {
-                nsent++;
-                break;
-            }
-        }
+        int ret = mixnet_send_loop(myhandle, port, headerp);
+        if (ret < 0)
+            return -1;
+        else
+            nsent++;
     }
 
     return nsent;
@@ -110,7 +117,10 @@ int stp_send() {
 
 // received an STP packet, returns 0 on success
 int stp_recv(mixnet_packet_stp *stp_packet) {
-    // update the neighbor's address and distance to root
+    if (!port_open[stp_packet->node_address])
+        return 0;
+
+     // update the neighbor's address and distance to root
     neighbor_addrs[port_recv] = stp_packet->node_address;
     dist_to_root[port_recv] = stp_packet->path_length;
 
@@ -155,32 +165,25 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     }
 
     // copy the root's "hello" message to all other neighbors
-    if (stp_curr_state.root_address != node_config.node_addr && stp_packet->node_address == stp_curr_state.root_address) {
-        for (uint8_t port = 0; port < node_config.num_neighbors; port++)
-            if (port != port_recv) {
-                void *sendbuf = malloc(sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
-                memcpy(sendbuf, stp_packet, sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
-                int ret;
-                while (true) {
-                    ret = mixnet_send(myhandle, port, sendbuf);
-                    if (ret < 0)
-                        return -1;
-                    if (ret == 1) {
-                        break;
-                    }
-                }
-            }
+    if (stp_curr_state.root_address != node_config.node_addr &&
+        stp_packet->root_address == stp_curr_state.root_address &&
+        port_recv == stp_nexthop) {
+        if (stp_send() < 0) {
+            fprintf(stderr, "stp_recv's hello relay error\n");
+            return -1;
+        }
+        notify = false;
         // reset timer
         timer = get_timestamp();
     }
 
     // notify neighbors if anything changes
     if (notify && stp_send() < 0) {
+        fprintf(stderr, "stp_recv's notify error\n");
         return -1;
     }
     
-    return 0;
-    
+    return 0;   
 }
 
 // send hello message if this is a root, otherwise decide if a reelection is needed
@@ -191,7 +194,7 @@ int stp_hello() {
     if (stp_curr_state.root_address == node_config.node_addr && interval >= node_config.root_hello_interval_ms) {
         if (stp_send() < 0)
             return -1;
-        timer = now;
+        timer = get_timestamp();
     } else if (stp_curr_state.root_address != node_config.node_addr && interval >= node_config.reelection_interval_ms) {
         // reelect
         stp_curr_state = (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
@@ -200,24 +203,26 @@ int stp_hello() {
             port_open[port] = true;
         for (uint8_t port = 0; port < node_config.num_neighbors; port++)
             dist_to_root[port] = INT_MAX;
-        timer = 0;
+        if (stp_send() < 0)
+            return -1;
+        timer = get_timestamp();
     }
 
     return 0;
 }
 
-int stp_flood() {
+int stp_flood(int source_port) {
     int ret = 0;
 
     for (uint8_t port_num = 0; port_num < node_config.num_neighbors; ++port_num) {
-        if (port_open[port_num]) {
+        if (port_num != source_port && port_open[port_num]) {
             void *sendbuf = malloc(sizeof(mixnet_packet));
 
             mixnet_packet *headerp = (mixnet_packet *) sendbuf;
             headerp->total_size = sizeof(mixnet_packet);
             headerp->type = PACKET_TYPE_FLOOD;
 
-            ret = mixnet_send(myhandle, port_num, sendbuf);
+            ret = mixnet_send_loop(myhandle, port_num, sendbuf);
             if (ret < 0)
                 return -1;
         }
@@ -227,17 +232,14 @@ int stp_flood() {
 }
 
 int send_to_user() {
-    int ret = 0;
     void *sendbuf = malloc(sizeof(mixnet_packet));
 
     mixnet_packet *headerp = (mixnet_packet *) sendbuf;
     headerp->total_size = sizeof(mixnet_packet);
     headerp->type = PACKET_TYPE_FLOOD;
 
-    ret = mixnet_send(myhandle, node_config.num_neighbors, sendbuf);
-    if (ret < 0)
+    if (mixnet_send_loop(myhandle, node_config.num_neighbors, sendbuf) < 0)
         return -1;
-    
     return 0;
 }
 
@@ -257,7 +259,7 @@ void run_node(void *const handle,
             if (port_recv == node_config.num_neighbors) {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_FLOOD:
-                    stp_flood();
+                    stp_flood(port_recv);
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
@@ -275,8 +277,13 @@ void run_node(void *const handle,
                     // TODO: update local link state, compute shortest paths, 
                     //       and broadcast along the spanning tree
                     break;
-                default:
+                case PACKET_TYPE_FLOOD:
+                    stp_flood(port_recv);
                     send_to_user();
+                    break;
+                case PACKET_TYPE_PING:
+                case PACKET_TYPE_DATA:
+                    break;
                 }
             }
             
