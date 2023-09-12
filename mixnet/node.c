@@ -81,7 +81,8 @@ int stp_send() {
         mixnet_packet *headerp = (mixnet_packet *)sendbuf;
         headerp->total_size = sizeof(mixnet_packet) + sizeof(mixnet_packet_stp);
         headerp->type = PACKET_TYPE_STP;
-        mixnet_packet_stp *payloadp = (mixnet_packet_stp *)(sendbuf + sizeof(mixnet_packet));
+
+        mixnet_packet_stp *payloadp = (mixnet_packet_stp *)((char *)sendbuf + sizeof(mixnet_packet));
         *payloadp = stp_curr_state;
         int ret;
         while (true) {
