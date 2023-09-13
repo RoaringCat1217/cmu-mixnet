@@ -74,7 +74,7 @@ void init_node() {
     stp_nexthop = NO_NEXTHOP;
     timer = 0;
 
-    logger_init(true, node_config.node_addr);
+    logger_init(false, node_config.node_addr);
 }
 
 void free_node() {
@@ -116,10 +116,6 @@ int stp_send() {
 
 // received an STP packet, returns 0 on success
 int stp_recv(mixnet_packet_stp *stp_packet) {
-    if (!port_open[stp_packet->node_address]) {
-        return 0;
-    }
-
     // update the neighbor's address and distance to root
     neighbor_addrs[port_recv] = stp_packet->node_address;
     dist_to_root[port_recv] = stp_packet->path_length;
@@ -271,8 +267,11 @@ void run_node(void *const handle, volatile bool *const keep_running,
             if (port_recv == node_config.num_neighbors) {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_FLOOD:
-                    if (stp_flood() < 0)
-                        print_err("received from user, error in stp_flood");
+                    if (port_open[port_recv]) {
+                        if (stp_flood() < 0)
+                            print_err("received from user, error in stp_flood");
+                    }
+                    
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
@@ -292,11 +291,14 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     //       and broadcast along the spanning tree
                     break;
                 case PACKET_TYPE_FLOOD:
-                    if (send_to_user() < 0)
+                    if (port_open[port_recv]) {
+                        if (send_to_user() < 0)
                         print_err("error in send_to_user");
-                    if (stp_flood() < 0)
-                        print_err(
-                            "received from neighbors, error in stp_flood");
+                        if (stp_flood() < 0)
+                            print_err(
+                                "received from neighbors, error in stp_flood");
+                    }
+
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
