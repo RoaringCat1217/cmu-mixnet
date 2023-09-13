@@ -139,6 +139,7 @@ int stp_hello() {
         if (ret < 0) {
             return -1;
         } else {
+            print("sent STP Hello packet to port %d(node %d)", port, neighbor_addrs[port]);
             nsent++;
         }
     }
@@ -203,10 +204,8 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     if (stp_curr_state.root_address != node_config.node_addr &&
         stp_packet->root_address == stp_curr_state.root_address &&
         port_recv == stp_nexthop) {
-        if (stp_hello() < 0) {
-            fprintf(stderr, "stp_recv's hello relay error\n");
+        if (stp_hello() < 0)
             return -1;
-        }
 
         // reset timer
         timer = get_timestamp();
