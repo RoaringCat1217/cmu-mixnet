@@ -109,7 +109,8 @@ int stp_send() {
         if (ret < 0) {
             return -1;
         } else {
-            print("sent STP packet to port %d(node %d)", port, neighbor_addrs[port]);
+            print("sent STP packet to port %d(node %d)", port,
+                  neighbor_addrs[port]);
             nsent++;
         }
     }
@@ -337,9 +338,12 @@ void run_node(void *const handle, volatile bool *const keep_running,
                         if (send_to_user() < 0)
                             print_err("error in send_to_user");
                         if (stp_flood() < 0)
-                            print_err("received from neighbors, error in stp_flood");
+                            print_err(
+                                "received from neighbors, error in stp_flood");
                     } else {
-                        print("received a FLOOD packet from port %d(node %d), ignored", port_recv, neighbor_addrs[port_recv]);
+                        print("received a FLOOD packet from port %d(node %d), "
+                              "ignored",
+                              port_recv, neighbor_addrs[port_recv]);
                     }
 
                     break;
@@ -353,7 +357,6 @@ void run_node(void *const handle, volatile bool *const keep_running,
 
             if (need_free)
                 free(packet_recv_ptr);
-
         }
 
         if (stp_check_timer() < 0)
