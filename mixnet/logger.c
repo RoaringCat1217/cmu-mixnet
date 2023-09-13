@@ -2,18 +2,21 @@
 
 mixnet_address node;
 bool on;
-char timebuf[9];
-
-void logger_init(bool turn_on, mixnet_address node_addr) {
-    on = turn_on;
-    node = node_addr;
-}
+unsigned long start;
 
 unsigned long timestamp() {
     struct timeval te; 
     gettimeofday(&te, NULL); 
     unsigned long us = te.tv_sec * 1000000UL + te.tv_usec;
-    return us % 1000000000UL;
+    return (us - start) % 1000000000UL;
+}
+
+void logger_init(bool turn_on, mixnet_address node_addr) {
+    on = turn_on;
+    node = node_addr;
+    struct timeval te; 
+    gettimeofday(&te, NULL); 
+    start = te.tv_sec * 1000000UL + te.tv_usec;
 }
 
 void print(const char *format, ...) {

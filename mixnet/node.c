@@ -9,7 +9,7 @@
 #include <string.h>
 #include <sys/time.h>
 
-#define ADDR_UNK 0
+#define ADDR_UNK -1
 #define NO_NEXTHOP -1
 #define INT_MAX 0x7FFFFFFF
 
@@ -116,10 +116,6 @@ int stp_send() {
 
 // received an STP packet, returns 0 on success
 int stp_recv(mixnet_packet_stp *stp_packet) {
-    if (!port_open[stp_packet->node_address]) {
-        return 0;
-    }
-
     // update the neighbor's address and distance to root
     neighbor_addrs[port_recv] = stp_packet->node_address;
     dist_to_root[port_recv] = stp_packet->path_length;
@@ -226,7 +222,7 @@ int stp_flood() {
     for (uint8_t port_num = 0; port_num < node_config.num_neighbors;
          ++port_num) {
         if (port_num != port_recv && port_open[port_num]) {
-            print("flood to port %d", port_num);
+            print("flood to port %d(node %d)", port_num, neighbor_addrs[port_num]);
 
             void *sendbuf = malloc(sizeof(mixnet_packet));
             mixnet_packet *headerp = (mixnet_packet *)sendbuf;
@@ -265,12 +261,12 @@ void run_node(void *const handle, volatile bool *const keep_running,
     while (*keep_running) {
         int received = mixnet_recv(myhandle, &port_recv, &packet_recv_ptr);
         if (received > 0) {
-            print("received a packet from port %d", port_recv);
             need_free = true;
 
             if (port_recv == node_config.num_neighbors) {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_FLOOD:
+                    print("received a FLOOD packet from user", port_recv);
                     if (stp_flood() < 0)
                         print_err("received from user, error in stp_flood");
                     break;
@@ -283,6 +279,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
             } else {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
+                    print("received a STP packet from port %d(node %d)", port_recv, neighbor_addrs[port_recv]);
                     if (stp_recv(
                             (mixnet_packet_stp *)packet_recv_ptr->payload) < 0)
                         print_err("error in stp_recv");
@@ -292,6 +289,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     //       and broadcast along the spanning tree
                     break;
                 case PACKET_TYPE_FLOOD:
+                    print("received a FLOOD packet from port %d(node %d)", port_recv, neighbor_addrs[port_recv]);
                     if (send_to_user() < 0)
                         print_err("error in send_to_user");
                     if (stp_flood() < 0)
