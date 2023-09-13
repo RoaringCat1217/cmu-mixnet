@@ -47,5 +47,6 @@ void print_err(const char *format, ...) {
 }
 
 void logger_end() {
-    fclose(out);
+    if (on)
+        fclose(out);
 }
