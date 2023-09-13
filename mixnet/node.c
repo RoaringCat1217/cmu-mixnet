@@ -74,7 +74,7 @@ void init_node() {
     stp_nexthop = NO_NEXTHOP;
     timer = 0;
 
-    logger_init(true, node_config.node_addr);
+    logger_init(false, node_config.node_addr);
 }
 
 void free_node() {
@@ -269,6 +269,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     print("received a FLOOD packet from user", port_recv);
                     if (stp_flood() < 0)
                         print_err("received from user, error in stp_flood");
+                    
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
@@ -289,12 +290,14 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     //       and broadcast along the spanning tree
                     break;
                 case PACKET_TYPE_FLOOD:
-                    print("received a FLOOD packet from port %d(node %d)", port_recv, neighbor_addrs[port_recv]);
-                    if (send_to_user() < 0)
-                        print_err("error in send_to_user");
-                    if (stp_flood() < 0)
-                        print_err(
-                            "received from neighbors, error in stp_flood");
+                    if (port_open[port_recv]) {
+                        print("received a FLOOD packet from port %d(node %d)", port_recv, neighbor_addrs[port_recv]);
+                        if (send_to_user() < 0)
+                            print_err("error in send_to_user");
+                        if (stp_flood() < 0)
+                            print_err("received from neighbors, error in stp_flood");
+                    }
+
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
