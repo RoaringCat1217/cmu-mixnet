@@ -74,13 +74,15 @@ void init_node() {
     stp_nexthop = NO_NEXTHOP;
     timer = 0;
 
-    logger_init(false, node_config.node_addr);
+    logger_init(true, node_config.node_addr);
+    print("node initialized, %d neighbors", node_config.num_neighbors);
 }
 
 void free_node() {
     free(neighbor_addrs);
     free(port_open);
     free(dist_to_root);
+    logger_end();
 }
 
 // send STP packets to all neighbors
@@ -107,10 +109,10 @@ int stp_send() {
         if (ret < 0) {
             return -1;
         } else {
+            print("sent STP packet to port %d(node %d)", port, neighbor_addrs[port]);
             nsent++;
         }
     }
-
     return nsent;
 }
 
@@ -296,6 +298,8 @@ void run_node(void *const handle, volatile bool *const keep_running,
                             print_err("error in send_to_user");
                         if (stp_flood() < 0)
                             print_err("received from neighbors, error in stp_flood");
+                    } else {
+                        print("received a FLOOD packet from port %d(node %d), ignored", port_recv, neighbor_addrs[port_recv]);
                     }
 
                     break;
@@ -309,6 +313,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
 
             if (need_free)
                 free(packet_recv_ptr);
+
         }
 
         if (stp_hello() < 0)
