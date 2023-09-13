@@ -74,7 +74,7 @@ void init_node() {
     stp_nexthop = NO_NEXTHOP;
     timer = 0;
 
-    logger_init(true, node_config.node_addr);
+    logger_init(false, node_config.node_addr);
 }
 
 void free_node() {
@@ -215,7 +215,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
 
 // send hello message if this is a root, otherwise decide if a reelection is
 // needed
-int check_timer() {
+int stp_check_timer() {
     unsigned long now = get_timestamp();
     unsigned long interval = now - timer;
 
@@ -237,7 +237,7 @@ int check_timer() {
             dist_to_root[port] = INT_MAX;
         }
 
-        if (stp_send() < 0) {
+        if (stp_hello() < 0) {
             return -1;
         }
 
@@ -346,7 +346,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
                 free(packet_recv_ptr);
         }
 
-        if (check_timer() < 0)
+        if (stp_check_timer() < 0)
             print_err("error in check_timer");
     }
 
