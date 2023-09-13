@@ -15,9 +15,11 @@ void logger_init(bool turn_on, mixnet_address node_addr) {
     on = turn_on;
     node = node_addr;
     char filename[64];
-    sprintf(filename, "./logs/node_%d.csv", node);
-    out = fopen(filename, "w+");
-    fprintf(out, "node address|timestamp|msg\n");
+    if (on) {
+        sprintf(filename, "./logs/node_%d.csv", node);
+        out = fopen(filename, "w+");
+        fprintf(out, "node address|timestamp|msg\n");
+    }
 }
 
 void print(const char *format, ...) {
