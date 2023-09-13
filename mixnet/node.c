@@ -114,6 +114,36 @@ int stp_send() {
     return nsent;
 }
 
+int stp_hello() {
+    int nsent = 0;
+
+    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
+        if (!port_open[port]) {
+            continue;
+        }
+
+        void *sendbuf =
+            malloc(sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
+
+        mixnet_packet *headerp = (mixnet_packet *)sendbuf;
+        headerp->total_size = sizeof(mixnet_packet) + sizeof(mixnet_packet_stp);
+        headerp->type = PACKET_TYPE_STP;
+
+        mixnet_packet_stp *payloadp =
+            (mixnet_packet_stp *)((char *)sendbuf + sizeof(mixnet_packet));
+        *payloadp = stp_curr_state;
+
+        int ret = mixnet_send_loop(myhandle, port, headerp);
+        if (ret < 0) {
+            return -1;
+        } else {
+            nsent++;
+        }
+    }
+
+    return nsent;
+}
+
 // received an STP packet, returns 0 on success
 int stp_recv(mixnet_packet_stp *stp_packet) {
     // update the neighbor's address and distance to root
@@ -169,7 +199,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
             fprintf(stderr, "stp_recv's hello relay error\n");
             return -1;
         }
-        notify = false;
+
         // reset timer
         timer = get_timestamp();
     }
@@ -181,36 +211,6 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     }
 
     return 0;
-}
-
-int stp_hello() {
-    int nsent = 0;
-
-    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
-        if (port == port_recv || !port_open[port]) {
-            continue;
-        }
-
-        void *sendbuf =
-            malloc(sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
-
-        mixnet_packet *headerp = (mixnet_packet *)sendbuf;
-        headerp->total_size = sizeof(mixnet_packet) + sizeof(mixnet_packet_stp);
-        headerp->type = PACKET_TYPE_STP;
-
-        mixnet_packet_stp *payloadp =
-            (mixnet_packet_stp *)((char *)sendbuf + sizeof(mixnet_packet));
-        *payloadp = stp_curr_state;
-
-        int ret = mixnet_send_loop(myhandle, port, headerp);
-        if (ret < 0) {
-            return -1;
-        } else {
-            nsent++;
-        }
-    }
-
-    return nsent;
 }
 
 // send hello message if this is a root, otherwise decide if a reelection is
@@ -240,7 +240,7 @@ int check_timer() {
         if (stp_send() < 0) {
             return -1;
         }
-        
+
         timer = get_timestamp();
     }
 
@@ -253,7 +253,8 @@ int stp_flood() {
     for (uint8_t port_num = 0; port_num < node_config.num_neighbors;
          ++port_num) {
         if (port_num != port_recv && port_open[port_num]) {
-            print("flood to port %d(node %d)", port_num, neighbor_addrs[port_num]);
+            print("flood to port %d(node %d)", port_num,
+                  neighbor_addrs[port_num]);
 
             void *sendbuf = malloc(sizeof(mixnet_packet));
             mixnet_packet *headerp = (mixnet_packet *)sendbuf;
@@ -300,7 +301,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     print("received a FLOOD packet from user", port_recv);
                     if (stp_flood() < 0)
                         print_err("received from user, error in stp_flood");
-                    
+
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
@@ -311,7 +312,8 @@ void run_node(void *const handle, volatile bool *const keep_running,
             } else {
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
-                    print("received a STP packet from port %d(node %d)", port_recv, neighbor_addrs[port_recv]);
+                    print("received a STP packet from port %d(node %d)",
+                          port_recv, neighbor_addrs[port_recv]);
                     if (stp_recv(
                             (mixnet_packet_stp *)packet_recv_ptr->payload) < 0)
                         print_err("error in stp_recv");
@@ -322,11 +324,13 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     break;
                 case PACKET_TYPE_FLOOD:
                     if (port_open[port_recv]) {
-                        print("received a FLOOD packet from port %d(node %d)", port_recv, neighbor_addrs[port_recv]);
+                        print("received a FLOOD packet from port %d(node %d)",
+                              port_recv, neighbor_addrs[port_recv]);
                         if (send_to_user() < 0)
                             print_err("error in send_to_user");
                         if (stp_flood() < 0)
-                            print_err("received from neighbors, error in stp_flood");
+                            print_err(
+                                "received from neighbors, error in stp_flood");
                     }
 
                     break;
