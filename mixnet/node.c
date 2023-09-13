@@ -74,7 +74,7 @@ void init_node() {
     stp_nexthop = NO_NEXTHOP;
     timer = 0;
 
-    logger_init(false, node_config.node_addr);
+    logger_init(true, node_config.node_addr);
 }
 
 void free_node() {
@@ -165,7 +165,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     if (stp_curr_state.root_address != node_config.node_addr &&
         stp_packet->root_address == stp_curr_state.root_address &&
         port_recv == stp_nexthop) {
-        if (stp_send() < 0) {
+        if (stp_hello() < 0) {
             fprintf(stderr, "stp_recv's hello relay error\n");
             return -1;
         }
@@ -183,15 +183,45 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     return 0;
 }
 
+int stp_hello() {
+    int nsent = 0;
+
+    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
+        if (port == port_recv || !port_open[port]) {
+            continue;
+        }
+
+        void *sendbuf =
+            malloc(sizeof(mixnet_packet) + sizeof(mixnet_packet_stp));
+
+        mixnet_packet *headerp = (mixnet_packet *)sendbuf;
+        headerp->total_size = sizeof(mixnet_packet) + sizeof(mixnet_packet_stp);
+        headerp->type = PACKET_TYPE_STP;
+
+        mixnet_packet_stp *payloadp =
+            (mixnet_packet_stp *)((char *)sendbuf + sizeof(mixnet_packet));
+        *payloadp = stp_curr_state;
+
+        int ret = mixnet_send_loop(myhandle, port, headerp);
+        if (ret < 0) {
+            return -1;
+        } else {
+            nsent++;
+        }
+    }
+
+    return nsent;
+}
+
 // send hello message if this is a root, otherwise decide if a reelection is
 // needed
-int stp_hello() {
+int check_timer() {
     unsigned long now = get_timestamp();
     unsigned long interval = now - timer;
 
     if (stp_curr_state.root_address == node_config.node_addr &&
         interval >= node_config.root_hello_interval_ms) {
-        if (stp_send() < 0)
+        if (stp_hello() < 0)
             return -1;
         timer = get_timestamp();
     } else if (stp_curr_state.root_address != node_config.node_addr &&
@@ -206,6 +236,7 @@ int stp_hello() {
         for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
             dist_to_root[port] = INT_MAX;
         }
+
         if (stp_send() < 0) {
             return -1;
         }
@@ -311,8 +342,8 @@ void run_node(void *const handle, volatile bool *const keep_running,
                 free(packet_recv_ptr);
         }
 
-        if (stp_hello() < 0)
-            print_err("error in stp_hello");
+        if (check_timer() < 0)
+            print_err("error in check_timer");
     }
 
     free_node();
