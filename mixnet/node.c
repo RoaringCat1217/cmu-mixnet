@@ -150,7 +150,12 @@ int stp_hello() {
 int stp_recv(mixnet_packet_stp *stp_packet) {
     // update the neighbor's address and distance to root
     neighbor_addrs[port_recv] = stp_packet->node_address;
-    dist_to_root[port_recv] = stp_packet->path_length;
+
+    if (stp_packet->root_address == stp_curr_state.root_address) {
+        dist_to_root[port_recv] = stp_packet->path_length;
+    } else {
+        dist_to_root[port_recv] = INT_MAX;
+    }
 
     // change my STP state
     bool stp_changed = false;
@@ -158,6 +163,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     if (stp_packet->root_address < stp_curr_state.root_address) {
         stp_curr_state.root_address = stp_packet->root_address;
         stp_curr_state.path_length = stp_packet->path_length + 1;
+        dist_to_root[port_recv] = stp_packet->path_length;
         stp_nexthop = port_recv;
         stp_changed = true;
         notify = true;
@@ -223,8 +229,9 @@ int stp_check_timer() {
 
     if (stp_curr_state.root_address == node_config.node_addr &&
         interval >= node_config.root_hello_interval_ms) {
-        if (stp_hello() < 0)
+        if (stp_hello() < 0) {
             return -1;
+        }
         timer = get_timestamp();
     } else if (stp_curr_state.root_address != node_config.node_addr &&
                interval >= node_config.reelection_interval_ms) {
