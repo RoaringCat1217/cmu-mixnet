@@ -39,7 +39,7 @@ void print_err(const char *format, ...) {
         va_list args;
         va_start(args, format);
         unsigned long t = timestamp();
-        fprintf(out, "%d|%ld|", node, t);
+        fprintf(out, "%d|%ld|ERROR: ", node, t);
         vfprintf(out, format, args);
         fprintf(out, "\n");
         va_end(args);

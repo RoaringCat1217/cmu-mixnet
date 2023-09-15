@@ -28,6 +28,10 @@ void run_node(void *const handle, volatile bool *const keep_running, const struc
 int stp_send();
 int stp_recv(mixnet_packet_stp *stp_packet);
 int stp_hello();
+int stp_check_timer();
+int stp_flood();
+
+int send_to_user();
 
 unsigned long get_timestamp();
 

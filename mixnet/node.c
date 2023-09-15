@@ -41,6 +41,7 @@ unsigned long get_timestamp() {
     return ms;
 }
 
+// repeatedly send a packet until success or error
 int mixnet_send_loop(void *handle, const uint8_t port, mixnet_packet *packet) {
     while (true) {
         int ret = mixnet_send(handle, port, packet);
@@ -53,6 +54,7 @@ int mixnet_send_loop(void *handle, const uint8_t port, mixnet_packet *packet) {
     return 1;
 }
 
+// initialize the node, allocate memory and initialize values for arrays, and configurate logger
 void init_node() {
     neighbor_addrs = malloc(node_config.num_neighbors * sizeof(mixnet_address));
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
@@ -78,6 +80,7 @@ void init_node() {
     print("node initialized, %d neighbors", node_config.num_neighbors);
 }
 
+// free arrays allocated to node and close log files
 void free_node() {
     free(neighbor_addrs);
     free(port_open);
@@ -85,7 +88,8 @@ void free_node() {
     logger_end();
 }
 
-// send STP packets to all neighbors
+// send STP update packets to all neighbors, triggered by stp_recv
+// returns the number of packets sent, or -1 for error
 int stp_send() {
     int nsent = 0;
 
@@ -117,6 +121,8 @@ int stp_send() {
     return nsent;
 }
 
+// send STP hello messages to all open ports
+// return the number of packets send, or -1 for error
 int stp_hello() {
     int nsent = 0;
 
@@ -148,7 +154,8 @@ int stp_hello() {
     return nsent;
 }
 
-// received an STP packet, returns 0 on success
+// received an STP packet, send STP updates if my STP state changes
+// returns 0 on success
 int stp_recv(mixnet_packet_stp *stp_packet) {
     // update the neighbor's address and distance to root
     neighbor_addrs[port_recv] = stp_packet->node_address;
@@ -221,8 +228,8 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     return 0;
 }
 
-// send hello message if this is a root, otherwise decide if a reelection is
-// needed
+// sends hello message if this is a root, otherwise decides if a reelection
+// is needed
 int stp_check_timer() {
     unsigned long now = get_timestamp();
     unsigned long interval = now - timer;
@@ -256,6 +263,7 @@ int stp_check_timer() {
     return 0;
 }
 
+// send FLOOD packets via spanning tree
 int stp_flood() {
     int ret = 0;
 
