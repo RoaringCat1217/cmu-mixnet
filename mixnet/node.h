@@ -13,6 +13,7 @@
 
 #include "address.h"
 #include "config.h"
+#include "packet.h"
 
 #include <stdbool.h>
 
@@ -20,9 +21,20 @@
 extern "C" {
 #endif
 
-void run_node(void *const handle,
-              volatile bool *const keep_running,
+void init_node();
+void free_node();
+void run_node(void *const handle, volatile bool *const keep_running,
               const struct mixnet_node_config c);
+
+int stp_send();
+int stp_recv(mixnet_packet_stp *stp_packet);
+int stp_hello();
+int stp_check_timer();
+int stp_flood();
+
+int send_to_user();
+
+unsigned long get_timestamp();
 
 #ifdef __cplusplus
 }
