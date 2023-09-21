@@ -1,8 +1,4 @@
 #include "attr.h"
-#include "connection.h"
-#include "logger.h"
-#include "config.h"
-#include "packet.h"
 
 #define ADDR_UNK -1
 #define NO_NEXTHOP -1
@@ -21,6 +17,10 @@ uint8_t stp_nexthop;
 bool *port_open;
 int *dist_to_root;
 unsigned long timer;
+
+// lsa
+graph *g;
+path **shortest_paths;
 
 // receive packets
 uint8_t port_recv;

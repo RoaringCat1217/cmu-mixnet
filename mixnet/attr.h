@@ -5,6 +5,8 @@
 #include "logger.h"
 #include "config.h"
 #include "packet.h"
+#include "utils.h"
+#include "ll.h"
 
 #define ADDR_UNK -1
 #define NO_NEXTHOP -1
@@ -25,6 +27,8 @@ extern int *dist_to_root;
 extern unsigned long timer;
 
 // lsa
+graph *g;
+path **shortest_paths;
 
 // receive packets
 extern uint8_t port_recv;

@@ -5,7 +5,22 @@
 
 #include <string.h>
 
-int lsa_update() {
+int lsa_update(mixnet_packet_lsa *lsa_packet) {
+    int n = lsa_packet->neighbor_count;
+
+    if (g->nodes[lsa_packet->node_address] == NULL) {
+        graph_insert(g, node_init(lsa_packet->node_address));
+    }
+
+    node *curr_node = graph_get(g, lsa_packet->node_address);
+
+    for (int i = 0; i < n; ++i) {
+        mixnet_lsa_link_params link = lsa_packet->links[i];
+        node_add_neighbor(curr_node, link.neighbor_mixaddr, link.cost);
+    }
+    
+    // TODO: run dijkstra to update shortest paths to each node
+
     return 0;
 }
 
@@ -40,7 +55,8 @@ int lsa_flood() {
             payload->neighbor_count = node_config.num_neighbors;
             for (int i = 0; i < n; ++i) {
                 payload->links[i].neighbor_mixaddr = neighbor_addrs[i];
-                payload->links[i].cost = 2; // TODO: update this cost later
+                payload->links[i].cost = graph_get(g, node_config.node_addr) -> 
+                    neighbors[neighbor_addrs[i]];
             }
 
             memcpy(payloadp, payload, lsa_size + n * lsa_link_size);
