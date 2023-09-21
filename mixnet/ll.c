@@ -1,46 +1,56 @@
 #include "ll.h"
 
-#include <stdlib.h>
 
-ll_node* create_ll_node(int cost, uint16_t node_addr);
-
-ll_node* create_ll_node(int cost, uint16_t node_addr){
-    ll_node *new_ll_node = malloc(sizeof(ll_node));
-    if (!new_ll_node) {
-        return NULL;
-    }
-    new_ll_node->cost = cost;
-    new_ll_node->node_addr = node_addr;
-    new_ll_node->next = NULL;
-
-    return new_ll_node;
+linkedlist *ll_init(){
+    linkedlist *ll = malloc(sizeof(linkedlist));
+    ll->size = 0;
+    ll->head = NULL;
+    ll->tail = NULL;
+    return ll;
 }
 
-list * makelist(){
-    list * l = malloc(sizeof(list));
-    if (!l) {
-        return NULL;
-    }
-    l->head = NULL;
-    
-    return l;
-}
-
-void add_ll_node(int cost, uint16_t node_addr, list *l){
-    ll_node* current = NULL;
-    if(l->head == NULL){
-        l->head = create_ll_node(cost, node_addr);
+void ll_append(linkedlist *ll, mixnet_address addr) {
+    ll_node *n = malloc(sizeof(ll_node));
+    n->node_addr = addr;
+    n->next = NULL;
+    if (ll->size == 0) {
+        ll->head = ll->tail = n;
     } else {
-        current = l->head; 
-        while (current->next != NULL) {
-            current = current->next;
-        }
-        current->next = create_ll_node(cost, node_addr);
+        ll->tail->next = n;
+        ll->tail = n;
     }
+    ll->size++;
 }
 
-void free_ll(list *l){
-    ll_node *curr = l->head;
+void ll_copy(linkedlist *dst, linkedlist *src) {
+    if (dst->head != NULL) {
+        ll_node *curr = dst->head;
+        ll_node *next = NULL;
+
+        while (curr != NULL) {
+            next = curr->next;
+            free(curr);
+            curr = next;
+        }
+        dst->head = dst->tail = NULL;
+    }
+    dst->size = src->size;
+    ll_node *curr = NULL;
+    for (ll_node *n = src->head; n != NULL; n = n->next) {
+        ll_node *copied = malloc(sizeof(ll_node));
+        copied->node_addr = n->node_addr;
+        copied->next = NULL;
+        if (curr == NULL)
+            dst->head = copied;
+        else
+            curr->next = copied;
+        curr = copied;
+    }
+    dst->tail = curr;
+}
+
+void ll_free(linkedlist *ll){
+    ll_node *curr = ll->head;
     ll_node *next = NULL;
 
     while (curr != NULL) {
@@ -48,6 +58,5 @@ void free_ll(list *l){
         free(curr);
         curr = next;
   }
-
-  free(l);
+  free(ll);
 }

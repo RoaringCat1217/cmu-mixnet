@@ -35,7 +35,7 @@ void init_node() {
     memset(shortest_paths, 0, sizeof(path *) * MAX_NODES);
     stp_curr_state =
         (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
-    stp_nexthop = NO_NEXTHOP;
+    stp_nexthop = PORT_NULL;
     timer = 0;
 
     logger_init(false, node_config.node_addr);

@@ -8,8 +8,8 @@
 #include "utils.h"
 #include "ll.h"
 
-#define ADDR_UNK -1
-#define NO_NEXTHOP -1
+#define ADDR_UNK ((mixnet_address)-1)
+#define PORT_NULL ((uint8_t)-1)
 
 // states of the node should be initialized as global variables
 

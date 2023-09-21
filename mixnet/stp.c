@@ -168,7 +168,7 @@ int stp_check_timer() {
         // reelect
         stp_curr_state = (mixnet_packet_stp){node_config.node_addr, 0,
                                              node_config.node_addr};
-        stp_nexthop = NO_NEXTHOP;
+        stp_nexthop = PORT_NULL;
         for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
             port_open[port] = true;
         }

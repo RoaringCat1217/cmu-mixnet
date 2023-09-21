@@ -1,8 +1,5 @@
 #include "attr.h"
 
-#define ADDR_UNK -1
-#define NO_NEXTHOP -1
-
 // states of the node should be initialized as global variables
 
 // basic states

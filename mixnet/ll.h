@@ -1,15 +1,24 @@
+#ifndef LL_H_
+#define LL_H_
+
+
 #include <stdint.h>
+#include <stdlib.h>
+#include "address.h"
 
 typedef struct ll_node {
-    int cost;
-    uint16_t node_addr;
+    mixnet_address node_addr;
     ll_node *next;
 } ll_node;
 
-typedef struct list {
-  ll_node * head; 
-} list;
+typedef struct linkedlist {
+  ll_node *head, *tail;
+  uint32_t size;
+} linkedlist;
 
-list* makelist();
-void add_ll_node(int cost, uint16_t node_addr, list *l);
-void free_ll(list *l);
+linkedlist* ll_init();
+void ll_copy(linkedlist *dst, linkedlist *src);
+void ll_append(linkedlist *ll, mixnet_address addr);
+void ll_free(linkedlist *ll);
+
+#endif
