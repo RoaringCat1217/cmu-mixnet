@@ -10,7 +10,7 @@
 #include <string.h>
 #include <sys/time.h>
 
-#define INT_MAX 0x7FFFFFFF
+#define INT_MAX 0x70000000
 
 #define MAX_PORTS (1 << 8)
 #define MAX_NODES (1 << 16)
@@ -22,7 +22,7 @@ int mixnet_send_loop(void *handle, const uint8_t port, mixnet_packet *packet);
 unsigned long get_timestamp(int unit);
 
 typedef struct priority_queue_entry {
-    int cost;
+    uint16_t cost;
     mixnet_address from;
     mixnet_address to;
 } priority_queue_entry;
@@ -37,7 +37,7 @@ typedef struct priority_queue {
 priority_queue *pq_init(bool (*cmp)(priority_queue_entry,
                                     priority_queue_entry));
 bool pq_empty(priority_queue *pq);
-void pq_insert(priority_queue *pq, int cost, mixnet_address from,
+void pq_insert(priority_queue *pq, uint16_t cost, mixnet_address from,
                mixnet_address to);
 priority_queue_entry pq_pop(priority_queue *pq);
 void pq_free(priority_queue *pq);
@@ -49,7 +49,7 @@ struct node {
     mixnet_address addr;
     uint32_t n_neighbors;
     mixnet_address neighbors[MAX_PORTS];
-    int costs[MAX_PORTS];
+    uint16_t costs[MAX_PORTS];
 };
 struct graph {
     uint32_t n_nodes;
@@ -59,15 +59,16 @@ struct graph {
 node *node_init(mixnet_address address);
 graph *graph_init();
 void graph_add_node(graph *g, mixnet_address addr);
-int graph_add_edge(graph *g, mixnet_address from, mixnet_address to, int cost);
+int graph_add_edge(graph *g, mixnet_address from, mixnet_address to,
+                   uint16_t cost);
 node *graph_get_node(graph *g, mixnet_address addr);
 void graph_free(graph *g);
 
 typedef struct path {
     mixnet_address dest;
     uint8_t sendport;
-    int total_cost;
-    list *route;
+    uint16_t total_cost;
+    linkedlist *route; // include both the source and the destination
 } path;
 
 path *path_init(mixnet_address dest);

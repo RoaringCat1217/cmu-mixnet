@@ -42,7 +42,7 @@ bool pq_empty(priority_queue *pq) {
     return pq->size > 0;
 }
 
-void pq_insert(priority_queue *pq, int cost, mixnet_address from,
+void pq_insert(priority_queue *pq, uint16_t cost, mixnet_address from,
                mixnet_address to) {
     if (pq->size + 1 > pq->capacity) {
         pq->capacity *= 2;
@@ -144,7 +144,8 @@ void graph_add_node(graph *g, mixnet_address addr) {
     }
 }
 
-int graph_add_edge(graph *g, mixnet_address from, mixnet_address to, int cost) {
+int graph_add_edge(graph *g, mixnet_address from, mixnet_address to,
+                   uint16_t cost) {
     if (g->nodes[from] == NULL)
         return -1;
     node *n = g->nodes[from];
@@ -174,13 +175,13 @@ void graph_free(graph *g) {
 path *path_init(mixnet_address dest) {
     path *p = malloc(sizeof(path));
     p->dest = dest;
-    p->total_cost = INT_MAX;
-    p->route = init_list();
+    p->total_cost = UINT16_MAX;
+    p->route = ll_init();
     p->sendport = -1;
     return p;
 }
 
 void path_free(path *p) {
-    free_ll(p->route);
+    ll_free(p->route);
     free(p);
 }
