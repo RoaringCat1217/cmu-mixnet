@@ -1,5 +1,9 @@
 #include "utils.h"
 
+#define INIT_CAPACITY 16
+#define MAX_PORTS 256
+#define MAX_NODES (1 << 16)
+
 // repeatedly send a packet until success or error
 int mixnet_send_loop(void *handle, const uint8_t port, mixnet_packet *packet) {
     while (true) {
@@ -23,8 +27,6 @@ unsigned long get_timestamp() {
 }
 
 // priority queue
-
-#define INIT_CAPACITY 16
 
 struct priority_queue_entry{
     int key;
@@ -123,4 +125,55 @@ bool less(int x, int y) {
 
 bool greater(int x, int y) {
     return x > y;
+}
+
+// node and graph
+struct node {
+    mixnet_address addr;
+    uint32_t n_neighbors;
+    mixnet_address neighbors[MAX_PORTS];
+    int costs[MAX_PORTS];
+};
+
+struct graph {
+    uint32_t n_nodes;
+    node **nodes;
+};
+
+node *node_init(mixnet_address address) {
+    node *n = (node *)malloc(sizeof(node));
+    n->addr = address;
+    n->n_neighbors = 0;
+    return n;
+}
+
+void node_add_neighbor(node *n, mixnet_address neighbor_addr, int neighbor_cost) {
+    n->neighbors[n->n_neighbors] = neighbor_addr;
+    n->costs[n->n_neighbors] = neighbor_cost;
+    n->n_neighbors++;
+}
+
+graph *graph_init() {
+    graph *g = (graph *)malloc(sizeof(graph));
+    g->n_nodes = 0;
+    g->nodes = (node **)malloc(MAX_NODES * sizeof(node *));
+    memset(g->nodes, 0, MAX_NODES * sizeof(node *));
+    return g;
+}
+
+void graph_insert(graph *g, node *n) {
+    g->nodes[n->addr] = n;
+    g->n_nodes++;
+}
+
+node *graph_get(graph *g, mixnet_address addr) {
+    return g->nodes[addr];
+}
+
+void graph_free(graph *g) {
+    for (int i = 0; i < MAX_NODES; i++) {
+        if (g->nodes[i] != NULL)
+            free(g->nodes[i]);
+    }
+    free(g);
 }
