@@ -1,8 +1,6 @@
 #include "utils.h"
 
 #define INIT_CAPACITY 16
-#define MAX_PORTS 256
-#define MAX_NODES (1 << 16)
 
 // repeatedly send a packet until success or error
 int mixnet_send_loop(void *handle, const uint8_t port, mixnet_packet *packet) {
@@ -128,17 +126,6 @@ bool greater(int x, int y) {
 }
 
 // node and graph
-struct node {
-    mixnet_address addr;
-    uint32_t n_neighbors;
-    mixnet_address neighbors[MAX_PORTS];
-    int costs[MAX_PORTS];
-};
-
-struct graph {
-    uint32_t n_nodes;
-    node **nodes;
-};
 
 node *node_init(mixnet_address address) {
     node *n = (node *)malloc(sizeof(node));
@@ -176,4 +163,8 @@ void graph_free(graph *g) {
             free(g->nodes[i]);
     }
     free(g);
+}
+
+void free_path(path* p) {
+    free_ll(p->route);
 }

@@ -5,6 +5,7 @@
 #include "connection.h"
 #include "logger.h"
 #include "packet.h"
+#include "utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +30,9 @@ void init_node() {
         dist_to_root[port] = INT_MAX;
     }
 
+    g = graph_init();
+    shortest_paths = malloc(sizeof(path *) * MAX_NODES);
+    memset(shortest_paths, 0, sizeof(path *) * MAX_NODES);
     stp_curr_state =
         (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
     stp_nexthop = NO_NEXTHOP;
@@ -43,6 +47,13 @@ void free_node() {
     free(neighbor_addrs);
     free(port_open);
     free(dist_to_root);
+    graph_free(g);
+    for (int i = 0; i < MAX_NODES; ++i) {
+        if (shortest_paths[i] != NULL) {
+            free_path(shortest_paths[i]);
+        }
+    }
+    free(shortest_paths);
     logger_end();
 }
 
@@ -87,7 +98,9 @@ void run_node(void *const handle, volatile bool *const keep_running,
                         print("received a LSA packet from port %d(node %d)",
                               port_recv, neighbor_addrs[port_recv]);
         
-                        if (lsa_update() < 0)
+                        if (lsa_update(
+                                (mixnet_packet_lsa *)packet_recv_ptr->payload) <
+                                0)
                             print_err(
                                 "received from neighbors, error in lsa_update");
                     
