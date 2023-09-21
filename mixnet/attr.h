@@ -10,7 +10,6 @@
 
 #define ADDR_UNK -1
 #define NO_NEXTHOP -1
-#define INT_MAX 0x7FFFFFFF
 
 // states of the node should be initialized as global variables
 

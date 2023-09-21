@@ -139,7 +139,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
             return -1;
 
         // reset timer
-        timer = get_timestamp();
+        timer = get_timestamp(MILLISEC);
     }
 
     // notify neighbors if anything changes
@@ -154,7 +154,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
 // sends hello message if this is a root, otherwise decides if a reelection
 // is needed
 int stp_check_timer() {
-    unsigned long now = get_timestamp();
+    unsigned long now = get_timestamp(MILLISEC);
     unsigned long interval = now - timer;
 
     if (stp_curr_state.root_address == node_config.node_addr &&
@@ -162,7 +162,7 @@ int stp_check_timer() {
         if (stp_hello() < 0) {
             return -1;
         }
-        timer = get_timestamp();
+        timer = get_timestamp(MILLISEC);
     } else if (stp_curr_state.root_address != node_config.node_addr &&
                interval >= node_config.reelection_interval_ms) {
         // reelect
@@ -180,7 +180,7 @@ int stp_check_timer() {
             return -1;
         }
 
-        timer = get_timestamp();
+        timer = get_timestamp(MILLISEC);
     }
 
     return 0;

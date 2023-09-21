@@ -5,21 +5,44 @@
 
 #include <string.h>
 
+void lsa_init() {
+    g = graph_init();
+    shortest_paths = malloc(sizeof(path *) * MAX_NODES);
+    memset((void *)shortest_paths, 0, sizeof(path *) * MAX_NODES);
+    // TODO: add my node to the graph
+}
+
 int lsa_update(mixnet_packet_lsa *lsa_packet) {
     int n = lsa_packet->neighbor_count;
 
-    if (g->nodes[lsa_packet->node_address] == NULL) {
-        graph_insert(g, node_init(lsa_packet->node_address));
-    }
-
-    node *curr_node = graph_get(g, lsa_packet->node_address);
+    graph_add_node(g, lsa_packet->node_address);
 
     for (int i = 0; i < n; ++i) {
         mixnet_lsa_link_params link = lsa_packet->links[i];
-        node_add_neighbor(curr_node, link.neighbor_mixaddr, link.cost);
+        graph_add_edge(g, lsa_packet->node_address, link.neighbor_mixaddr, link.cost);
     }
     
     // TODO: run dijkstra to update shortest paths to each node
+    if (g->open_edges == 0) {
+        // graph is complete
+        priority_queue *pq = pq_init(less);
+        shortest_paths[node_config.node_addr] = path_init(node_config.node_addr);
+        shortest_paths[node_config.node_addr]->total_cost = 0;
+        node *n = graph_get_node(g, node_config.node_addr);
+        for (int i = 0; i < n->n_neighbors; i++)
+            pq_insert(pq, n->costs[i], n->neighbors[i]);
+        while (!pq_empty(pq)) {
+            priority_queue_entry front = pq_pop(pq);
+            mixnet_address from = front.from;
+            mixnet_address to = front.to;
+            if (shortest_paths[to] != NULL)
+                continue;
+            shortest_paths[curr] = path_init(curr);
+            shortest_paths[curr]->total_cost = front.key;
+
+        }
+        pq_free(pq);
+    }
 
     return 0;
 }
@@ -55,7 +78,7 @@ int lsa_flood() {
             payload->neighbor_count = node_config.num_neighbors;
             for (int i = 0; i < n; ++i) {
                 payload->links[i].neighbor_mixaddr = neighbor_addrs[i];
-                payload->links[i].cost = graph_get(g, node_config.node_addr) -> 
+                payload->links[i].cost = graph_get_node(g, node_config.node_addr) -> 
                     neighbors[neighbor_addrs[i]];
             }
 
