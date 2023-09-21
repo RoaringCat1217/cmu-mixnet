@@ -31,8 +31,6 @@ void init_node() {
         dist_to_root[port] = INT_MAX;
     }
 
-    lsa_init();
-
     stp_curr_state =
         (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
     stp_nexthop = NO_NEXTHOP;
@@ -61,7 +59,8 @@ void run_node(void *const handle, volatile bool *const keep_running,
     print("%d neighbors", node_config.num_neighbors);
     init_node();
 
-    // TODO: send lsa after neighbor discovering
+    // TODO: init lsa after neighbor discovering
+    // lsa_init();
 
     while (*keep_running) {
         int received = mixnet_recv(myhandle, &port_recv, &packet_recv_ptr);
