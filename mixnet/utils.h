@@ -22,4 +22,13 @@ void pq_free(priority_queue *pq);
 bool less(int x, int y);
 bool greater(int x, int y);
 
+typedef struct node node;
+typedef struct graph graph;
+node *node_init(mixnet_address address);
+void node_add_neighbor(node *n, mixnet_address neighbor_addr, int neighbor_cost);
+graph *graph_init();
+void graph_insert(graph *g, node *n);
+node *graph_get(graph *g, mixnet_address addr);
+void graph_free(graph *g);
+
 #endif
