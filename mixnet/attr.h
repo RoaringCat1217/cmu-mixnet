@@ -24,6 +24,8 @@ extern bool *port_open;
 extern int *dist_to_root;
 extern unsigned long timer;
 
+// lsa
+
 // receive packets
 extern uint8_t port_recv;
 extern mixnet_packet *packet_recv_ptr;
