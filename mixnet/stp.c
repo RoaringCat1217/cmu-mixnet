@@ -1,9 +1,9 @@
 #include "stp.h"
-#include "utils.h"
 #include "attr.h"
 #include "connection.h"
 #include "logger.h"
 #include "packet.h"
+#include "utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,7 +1,3 @@
-int routing_mix() {
+int routing_mix() {}
 
-}
-
-int routing_forward() {
-
-}
+int routing_forward() {}

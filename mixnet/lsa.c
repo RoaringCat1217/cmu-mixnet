@@ -1,7 +1,7 @@
 #include "attr.h"
-#include "utils.h"
-#include "packet.h"
 #include "logger.h"
+#include "packet.h"
+#include "utils.h"
 
 #include <string.h>
 
@@ -29,14 +29,16 @@ int lsa_update(mixnet_packet_lsa *lsa_packet) {
 
     for (int i = 0; i < n; ++i) {
         mixnet_lsa_link_params link = lsa_packet->links[i];
-        graph_add_edge(g, lsa_packet->node_address, link.neighbor_mixaddr, link.cost);
+        graph_add_edge(g, lsa_packet->node_address, link.neighbor_mixaddr,
+                       link.cost);
     }
-    
+
     // TODO: run dijkstra to update shortest paths to each node
     if (g->open_edges == 0) {
         // graph is complete
         priority_queue *pq = pq_init(less);
-        shortest_paths[node_config.node_addr] = path_init(node_config.node_addr);
+        shortest_paths[node_config.node_addr] =
+            path_init(node_config.node_addr);
         shortest_paths[node_config.node_addr]->total_cost = 0;
         node *n = graph_get_node(g, node_config.node_addr);
         for (int i = 0; i < n->n_neighbors; i++)
@@ -49,7 +51,6 @@ int lsa_update(mixnet_packet_lsa *lsa_packet) {
                 continue;
             shortest_paths[curr] = path_init(curr);
             shortest_paths[curr]->total_cost = front.key;
-
         }
         pq_free(pq);
     }
@@ -72,7 +73,7 @@ int lsa_flood() {
             int lsa_size = sizeof(mixnet_packet_lsa);
             int lsa_link_size = sizeof(mixnet_lsa_link_params);
             int packet_size = header_size + lsa_size + n * lsa_link_size;
-            
+
             void *sendbuf = malloc(packet_size);
 
             mixnet_packet *headerp = (mixnet_packet *)sendbuf;
@@ -80,7 +81,7 @@ int lsa_flood() {
             headerp->type = PACKET_TYPE_LSA;
 
             mixnet_packet_lsa *payloadp =
-                    (mixnet_packet_lsa *)((char *)sendbuf + header_size);
+                (mixnet_packet_lsa *)((char *)sendbuf + header_size);
 
             mixnet_packet_lsa *payload = malloc(lsa_size + n * lsa_link_size);
 
@@ -88,8 +89,9 @@ int lsa_flood() {
             payload->neighbor_count = node_config.num_neighbors;
             for (int i = 0; i < n; ++i) {
                 payload->links[i].neighbor_mixaddr = neighbor_addrs[i];
-                payload->links[i].cost = graph_get_node(g, node_config.node_addr) -> 
-                    neighbors[neighbor_addrs[i]];
+                payload->links[i].cost =
+                    graph_get_node(g, node_config.node_addr)
+                        ->neighbors[neighbor_addrs[i]];
             }
 
             memcpy(payloadp, payload, lsa_size + n * lsa_link_size);

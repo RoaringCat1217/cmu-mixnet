@@ -33,7 +33,8 @@ priority_queue *pq_init(bool (*f)(priority_queue_entry, priority_queue_entry)) {
     pq->cmp = f;
     pq->size = 0;
     pq->capacity = INIT_CAPACITY;
-    pq->data = (priority_queue_entry *)malloc(sizeof(priority_queue_entry) * pq->capacity);
+    pq->data = (priority_queue_entry *)malloc(sizeof(priority_queue_entry) *
+                                              pq->capacity);
     return pq;
 }
 
@@ -41,10 +42,12 @@ bool pq_empty(priority_queue *pq) {
     return pq->size > 0;
 }
 
-void pq_insert(priority_queue *pq, int cost, mixnet_address from, mixnet_address to) {
+void pq_insert(priority_queue *pq, int cost, mixnet_address from,
+               mixnet_address to) {
     if (pq->size + 1 > pq->capacity) {
         pq->capacity *= 2;
-        priority_queue_entry *new_data = (priority_queue_entry *)malloc(sizeof(priority_queue_entry) * pq->capacity);
+        priority_queue_entry *new_data = (priority_queue_entry *)malloc(
+            sizeof(priority_queue_entry) * pq->capacity);
         memcpy(new_data, pq->data, pq->size * sizeof(priority_queue_entry));
         free(pq->data);
         pq->data = new_data;
@@ -176,7 +179,7 @@ path *path_init(mixnet_address dest) {
     p->sendport = -1;
 }
 
-void path_free(path* p) {
+void path_free(path *p) {
     free_ll(p->route);
     free(p);
 }

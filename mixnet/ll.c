@@ -2,9 +2,9 @@
 
 #include <stdlib.h>
 
-ll_node* create_ll_node(int cost, uint16_t node_addr);
+ll_node *create_ll_node(int cost, uint16_t node_addr);
 
-ll_node* create_ll_node(int cost, uint16_t node_addr){
+ll_node *create_ll_node(int cost, uint16_t node_addr) {
     ll_node *new_ll_node = malloc(sizeof(ll_node));
     if (!new_ll_node) {
         return NULL;
@@ -16,22 +16,22 @@ ll_node* create_ll_node(int cost, uint16_t node_addr){
     return new_ll_node;
 }
 
-list * init_list(){
-    list * l = malloc(sizeof(list));
+list *init_list() {
+    list *l = malloc(sizeof(list));
     if (!l) {
         return NULL;
     }
     l->head = NULL;
-    
+
     return l;
 }
 
-void add_ll_node(int cost, uint16_t node_addr, list *l){
-    ll_node* current = NULL;
-    if(l->head == NULL){
+void add_ll_node(int cost, uint16_t node_addr, list *l) {
+    ll_node *current = NULL;
+    if (l->head == NULL) {
         l->head = create_ll_node(cost, node_addr);
     } else {
-        current = l->head; 
+        current = l->head;
         while (current->next != NULL) {
             current = current->next;
         }
@@ -39,7 +39,7 @@ void add_ll_node(int cost, uint16_t node_addr, list *l){
     }
 }
 
-void free_ll(list *l){
+void free_ll(list *l) {
     ll_node *curr = l->head;
     ll_node *next = NULL;
 
@@ -47,7 +47,7 @@ void free_ll(list *l){
         next = curr->next;
         free(curr);
         curr = next;
-  }
+    }
 
-  free(l);
+    free(l);
 }

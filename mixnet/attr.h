@@ -1,12 +1,12 @@
 #ifndef ATTR_H_
 #define ATTR_H_
 
-#include "connection.h"
-#include "logger.h"
 #include "config.h"
+#include "connection.h"
+#include "ll.h"
+#include "logger.h"
 #include "packet.h"
 #include "utils.h"
-#include "ll.h"
 
 #define ADDR_UNK -1
 #define NO_NEXTHOP -1
