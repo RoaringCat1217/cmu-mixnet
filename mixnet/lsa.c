@@ -1,6 +1,7 @@
 #include "attr.h"
 #include "utils.h"
 #include "packet.h"
+#include "logger.h"
 
 #include <string.h>
 
@@ -39,7 +40,7 @@ int lsa_flood() {
             payload->neighbor_count = node_config.num_neighbors;
             for (int i = 0; i < n; ++i) {
                 payload->links[i].neighbor_mixaddr = neighbor_addrs[i];
-                payload->links[i].cost = 2;
+                payload->links[i].cost = 2; // TODO: update this cost later
             }
 
             memcpy(payloadp, payload, lsa_size + n * lsa_link_size);
