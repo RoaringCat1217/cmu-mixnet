@@ -168,12 +168,11 @@ void graph_free(graph *g) {
 }
 
 // path and link
-
 path *path_init(mixnet_address dest) {
     path *p = malloc(sizeof(path));
     p->dest = dest;
     p->total_cost = INT_MAX;
-    p->route = makelist();
+    p->route = init_list();
     p->sendport = -1;
 }
 

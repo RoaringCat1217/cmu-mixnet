@@ -10,6 +10,6 @@ typedef struct list {
   ll_node * head; 
 } list;
 
-list* makelist();
+list* init_list();
 void add_ll_node(int cost, uint16_t node_addr, list *l);
 void free_ll(list *l);

@@ -6,6 +6,7 @@
 #include "logger.h"
 #include "packet.h"
 #include "utils.h"
+#include "routing.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,9 +31,8 @@ void init_node() {
         dist_to_root[port] = INT_MAX;
     }
 
-    g = graph_init();
-    shortest_paths = malloc(sizeof(path *) * MAX_NODES);
-    memset(shortest_paths, 0, sizeof(path *) * MAX_NODES);
+    lsa_init();
+
     stp_curr_state =
         (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
     stp_nexthop = NO_NEXTHOP;
@@ -47,13 +47,9 @@ void free_node() {
     free(neighbor_addrs);
     free(port_open);
     free(dist_to_root);
-    graph_free(g);
-    for (int i = 0; i < MAX_NODES; ++i) {
-        if (shortest_paths[i] != NULL) {
-            free_path(shortest_paths[i]);
-        }
-    }
-    free(shortest_paths);
+   
+    lsa_free();
+   
     logger_end();
 }
 
@@ -64,6 +60,8 @@ void run_node(void *const handle, volatile bool *const keep_running,
     node_config = c;
     print("%d neighbors", node_config.num_neighbors);
     init_node();
+
+    // TODO: send lsa after neighbor discovering
 
     while (*keep_running) {
         int received = mixnet_recv(myhandle, &port_recv, &packet_recv_ptr);
@@ -80,6 +78,12 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
+                if (routing_mix() < 0) {
+                    print_err("received from user, error in routing_mix");
+                }
+                if (routing_forward() < 0) {
+                    print_err("received from user, error in routing_forward");
+                }
                     break;
                 default:
                     print_err("wrong packet type received");
@@ -100,13 +104,15 @@ void run_node(void *const handle, volatile bool *const keep_running,
         
                         if (lsa_update(
                                 (mixnet_packet_lsa *)packet_recv_ptr->payload) <
-                                0)
+                                0) {
                             print_err(
                                 "received from neighbors, error in lsa_update");
+                        }
                     
-                        if (lsa_flood() < 0)
+                        if (lsa_broadcast() < 0) {
                             print_err(
-                                "received from neighbors, error in lsa_flood");
+                                "received from neighbors, error in lsa_broadcast");
+                        }
                     } else {
                         print("received a LSA packet from port %d(node %d), "
                               "ignored",
@@ -117,28 +123,44 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     if (port_open[port_recv]) {
                         print("received a FLOOD packet from port %d(node %d)",
                               port_recv, neighbor_addrs[port_recv]);
-                        if (send_to_user() < 0)
+                        if (send_to_user() < 0) {
                             print_err("error in send_to_user");
-                        if (stp_flood() < 0)
+                        }
+                        if (stp_flood() < 0) {
                             print_err(
                                 "received from neighbors, error in stp_flood");
+                        }
                     } else {
                         print("received a FLOOD packet from port %d(node %d), "
                               "ignored",
                               port_recv, neighbor_addrs[port_recv]);
                     }
-
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
+                uint16_t dest = 0;
+                memset(dest, packet_recv_ptr->payload + 2, 2);
+                
+                if (dest == node_config.node_addr) {
+                    send_to_user();
+                } else {
+                    if (routing_mix() < 0) {
+                            print_err("received from neighbors, error in routing_mix");
+                    }
+                    if (routing_forward() < 0) {
+                        print_err(
+                            "received from neighbors, error in routing_forward");
+                    }
+                }
                     break;
                 default:
                     print_err("wrong packet type received");
                 }
             }
 
-            if (need_free)
+            if (need_free) {
                 free(packet_recv_ptr);
+            }
         }
 
         if (stp_check_timer() < 0)
@@ -146,4 +168,15 @@ void run_node(void *const handle, volatile bool *const keep_running,
     }
 
     free_node();
+}
+
+// send the current received packet to user
+int send_to_user() {
+    need_free = false;
+    if (mixnet_send_loop(myhandle, node_config.num_neighbors, packet_recv_ptr) <
+        0) {
+        return -1;
+    }
+
+    return 0;
 }

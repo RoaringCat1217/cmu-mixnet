@@ -210,14 +210,3 @@ int stp_flood() {
 
     return 0;
 }
-
-// send the current received packet to user
-int send_to_user() {
-    need_free = false;
-    if (mixnet_send_loop(myhandle, node_config.num_neighbors, packet_recv_ptr) <
-        0) {
-        return -1;
-    }
-
-    return 0;
-}

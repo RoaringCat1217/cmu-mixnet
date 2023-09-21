@@ -8,8 +8,18 @@
 void lsa_init() {
     g = graph_init();
     shortest_paths = malloc(sizeof(path *) * MAX_NODES);
-    memset((void *)shortest_paths, 0, sizeof(path *) * MAX_NODES);
+    memset(shortest_paths, 0, sizeof(path *) * MAX_NODES);
     // TODO: add my node to the graph
+}
+
+void lsa_free() {
+    graph_free(g);
+    for (int i = 0; i < MAX_NODES; ++i) {
+        if (shortest_paths[i] != NULL) {
+            free_path(shortest_paths[i]);
+        }
+    }
+    free(shortest_paths);
 }
 
 int lsa_update(mixnet_packet_lsa *lsa_packet) {
@@ -92,6 +102,28 @@ int lsa_flood() {
             }
         }
     }
+
+    return 0;
+}
+
+// broadcast along the spanning tree
+int lsa_broadcast() {
+    int ret = 0;
+
+    for (uint8_t port_num = 0; port_num < node_config.num_neighbors;
+         ++port_num) {
+        if (port_num != port_recv && port_open[port_num]) {
+            print("forward lsa update to port %d(node %d)", port_num,
+                  neighbor_addrs[port_num]);
+
+            ret = mixnet_send_loop(myhandle, port_num, packet_recv_ptr);
+            if (ret < 0) {
+                return -1;
+            }
+        }
+    }
+
+    need_free = false;
 
     return 0;
 }

@@ -16,7 +16,7 @@ ll_node* create_ll_node(int cost, uint16_t node_addr){
     return new_ll_node;
 }
 
-list * makelist(){
+list * init_list(){
     list * l = malloc(sizeof(list));
     if (!l) {
         return NULL;
