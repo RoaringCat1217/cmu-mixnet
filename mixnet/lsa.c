@@ -16,7 +16,7 @@ void lsa_free() {
     graph_free(g);
     for (int i = 0; i < MAX_NODES; ++i) {
         if (shortest_paths[i] != NULL) {
-            free_path(shortest_paths[i]);
+            path_free(shortest_paths[i]);
         }
     }
     free(shortest_paths);

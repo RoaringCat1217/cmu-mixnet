@@ -177,6 +177,7 @@ path *path_init(mixnet_address dest) {
     p->total_cost = INT_MAX;
     p->route = init_list();
     p->sendport = -1;
+    return p;
 }
 
 void path_free(path *p) {

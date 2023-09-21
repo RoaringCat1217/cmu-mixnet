@@ -33,6 +33,7 @@ void init_node() {
 
     stp_curr_state =
         (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
+    lsa_status = 0;
     stp_nexthop = NO_NEXTHOP;
     timer = 0;
 
@@ -89,6 +90,11 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     print_err("wrong packet type received");
                 }
             } else {
+                uint16_t dest_port = 0;
+                // char *p = &dest;
+                // p[0] = packet_recv_ptr->payload[2];
+                // p[1] = packet_recv_ptr->payload[3];
+
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
                     print("received a STP packet from port %d(node %d)",
@@ -138,10 +144,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
-                    uint16_t dest = 0;
-                    memset(dest, packet_recv_ptr->payload + 2, 2);
-
-                    if (dest == node_config.node_addr) {
+                    if (dest_port == node_config.node_addr) {
                         send_to_user();
                     } else {
                         if (routing_mix() < 0) {

@@ -16,6 +16,7 @@
 // basic states
 extern void *myhandle;
 extern struct mixnet_node_config node_config;
+extern uint8_t lsa_status;
 
 // stp
 extern mixnet_address *neighbor_addrs;

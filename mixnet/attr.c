@@ -1,13 +1,11 @@
 #include "attr.h"
 
-#define ADDR_UNK -1
-#define NO_NEXTHOP -1
-
 // states of the node should be initialized as global variables
 
 // basic states
 void *myhandle;
 struct mixnet_node_config node_config;
+uint8_t lsa_status;
 
 // stp
 mixnet_address *neighbor_addrs;
