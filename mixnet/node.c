@@ -1,5 +1,6 @@
 #include "node.h"
 #include "stp.h"
+#include "lsa.h"
 #include "attr.h"
 #include "connection.h"
 #include "logger.h"
@@ -82,8 +83,22 @@ void run_node(void *const handle, volatile bool *const keep_running,
                         print_err("error in stp_recv");
                     break;
                 case PACKET_TYPE_LSA:
-                    // TODO: update local link state, compute shortest paths,
-                    //       and broadcast along the spanning tree
+                    if (port_open[port_recv]) {
+                        print("received a LSA packet from port %d(node %d)",
+                              port_recv, neighbor_addrs[port_recv]);
+        
+                        if (lsa_update() < 0)
+                            print_err(
+                                "received from neighbors, error in lsa_update");
+                    
+                        if (lsa_flood() < 0)
+                            print_err(
+                                "received from neighbors, error in lsa_flood");
+                    } else {
+                        print("received a LSA packet from port %d(node %d), "
+                              "ignored",
+                              port_recv, neighbor_addrs[port_recv]);
+                    }
                     break;
                 case PACKET_TYPE_FLOOD:
                     if (port_open[port_recv]) {
