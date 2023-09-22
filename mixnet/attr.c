@@ -5,7 +5,6 @@
 // basic states
 void *myhandle;
 struct mixnet_node_config node_config;
-uint8_t lsa_status;
 
 // stp
 mixnet_address *neighbor_addrs;
@@ -16,6 +15,7 @@ int *dist_to_root;
 unsigned long timer;
 
 // lsa
+uint8_t lsa_status;
 graph *g;
 path **shortest_paths;
 

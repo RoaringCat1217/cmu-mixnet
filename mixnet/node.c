@@ -31,7 +31,6 @@ void init_node() {
         dist_to_root[port] = INT_MAX;
     }
 
-    lsa_init();
     stp_curr_state =
         (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
     lsa_status = LSA_NEIGHBOR_DISCOVERY;
@@ -40,6 +39,8 @@ void init_node() {
     curr_mixing_count = 0;
     pending_packets =
         malloc(node_config.mixing_factor * sizeof(port_and_packet *));
+
+    lsa_init();
 
     logger_init(false, node_config.node_addr);
     print("node initialized, %d neighbors", node_config.num_neighbors);
@@ -71,15 +72,13 @@ void run_node(void *const handle, volatile bool *const keep_running,
     print("%d neighbors", node_config.num_neighbors);
     init_node();
 
-    // TODO: init lsa after neighbor discovering
-    // lsa_init();
-
     while (*keep_running) {
         int received = mixnet_recv(myhandle, &port_recv, &packet_recv_ptr);
         if (received > 0) {
             need_free = true;
 
             if (port_recv == node_config.num_neighbors) {
+                // received from user
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_FLOOD:
                     print("received a FLOOD packet from user", port_recv);
@@ -89,14 +88,14 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     break;
                 case PACKET_TYPE_PING:
                     if (ping_recv((mixnet_packet_routing_header *)
-                                      packet_recv_ptr->payload)) {
+                                      packet_recv_ptr->payload) < 0) {
                         print_err("received from neighbors, error in "
                                   "ping_recv");
                     }
                     break;
                 case PACKET_TYPE_DATA:
                     if (data_recv((mixnet_packet_routing_header *)
-                                      packet_recv_ptr->payload)) {
+                                      packet_recv_ptr->payload) < 0) {
                         print_err("received from neighbors, error in "
                                   "data_recv");
                     }
@@ -105,6 +104,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     print_err("wrong packet type received");
                 }
             } else {
+                // received from network
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
                     print("received a STP packet from port %d (node %d)",
@@ -172,8 +172,6 @@ void run_node(void *const handle, volatile bool *const keep_running,
                                       "routing_forward");
                         }
                     }
-                    break;
-
                     break;
                 case PACKET_TYPE_DATA:
                     if (((mixnet_packet_routing_header *)

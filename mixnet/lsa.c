@@ -7,15 +7,13 @@
 #include <stdbool.h>
 #include <string.h>
 
-void lsa_send();
-void lsa_add_neighbors();
-
 // init LSA states and structures ONLY AFTER neighbor discovery
 void lsa_init() {
     shortest_paths = malloc(sizeof(path *) * MAX_NODES);
     memset(shortest_paths, 0, sizeof(path *) * MAX_NODES);
     g = graph_init();
     graph_add_node(g, node_config.node_addr);
+    lsa_status = LSA_NEIGHBOR_DISCOVERY;
 }
 
 void lsa_free() {
@@ -28,7 +26,14 @@ void lsa_free() {
     graph_free(g);
 }
 
-void lsa_send() {
+void lsa_add_neighbors() {
+    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
+        graph_add_edge(g, node_config.node_addr, neighbor_addrs[port],
+                       node_config.link_costs[port]);
+    }
+}
+
+void lsa_send_neighbors() {
     uint16_t total_size =
         sizeof(mixnet_packet) + sizeof(mixnet_packet_lsa) +
         node_config.num_neighbors * sizeof(mixnet_lsa_link_params);
@@ -49,14 +54,18 @@ void lsa_send() {
                                      .cost = node_config.link_costs[i]};
     }
 
-    for (int i = 0; i < node_config.num_neighbors; ++i) {
-        mixnet_send_loop(myhandle, i, mixnet_header);
+    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
+        if (port_open[port])
+            mixnet_send_loop(myhandle, port, mixnet_header);
     }
 }
 
 int lsa_update(mixnet_packet_lsa *lsa_packet) {
     int n = lsa_packet->neighbor_count;
 
+    if (g->nodes[lsa_packet->node_address] != NULL)
+        print_err("received duplicate LSA packets from %d",
+                  lsa_packet->node_address);
     graph_add_node(g, lsa_packet->node_address);
 
     for (int i = 0; i < n; ++i) {
@@ -65,7 +74,7 @@ int lsa_update(mixnet_packet_lsa *lsa_packet) {
                        link.cost);
     }
 
-    if (g->open_edges == 0 && lsa_status == LSA_CONSTRUCT) {
+    if (g->open_edges == 0) {
         // graph is complete, run dijkstra and complete shortest_paths
         priority_queue *pq = pq_init(less);
         shortest_paths[node_config.node_addr] =
@@ -110,58 +119,6 @@ int lsa_update(mixnet_packet_lsa *lsa_packet) {
             }
         }
         pq_free(pq);
-
-        lsa_status = LSA_RUN;
-    }
-
-    return 0;
-}
-
-// send LSA packets along the spanning tree
-int lsa_flood() {
-    int ret = 0;
-
-    for (uint8_t port_num = 0; port_num < node_config.num_neighbors;
-         ++port_num) {
-        if (port_num != port_recv && port_open[port_num]) {
-            print("send lsa update to port %d(node %d)", port_num,
-                  neighbor_addrs[port_num]);
-
-            int n = node_config.num_neighbors;
-            int header_size = sizeof(mixnet_packet);
-            int lsa_size = sizeof(mixnet_packet_lsa);
-            int lsa_link_size = sizeof(mixnet_lsa_link_params);
-            int packet_size = header_size + lsa_size + n * lsa_link_size;
-
-            void *sendbuf = malloc(packet_size);
-
-            mixnet_packet *headerp = (mixnet_packet *)sendbuf;
-            headerp->total_size = packet_size;
-            headerp->type = PACKET_TYPE_LSA;
-
-            mixnet_packet_lsa *payloadp =
-                (mixnet_packet_lsa *)((char *)sendbuf + header_size);
-
-            mixnet_packet_lsa *payload = malloc(lsa_size + n * lsa_link_size);
-
-            payload->node_address = node_config.node_addr;
-            payload->neighbor_count = node_config.num_neighbors;
-            for (int i = 0; i < n; ++i) {
-                payload->links[i].neighbor_mixaddr = neighbor_addrs[i];
-                payload->links[i].cost =
-                    graph_get_node(g, node_config.node_addr)
-                        ->neighbors[neighbor_addrs[i]];
-            }
-
-            memcpy(payloadp, payload, lsa_size + n * lsa_link_size);
-
-            free(payload);
-
-            ret = mixnet_send_loop(myhandle, port_num, sendbuf);
-            if (ret < 0) {
-                return -1;
-            }
-        }
     }
 
     return 0;
@@ -170,14 +127,17 @@ int lsa_flood() {
 // broadcast along the spanning tree
 int lsa_broadcast() {
     int ret = 0;
+    uint16_t total_size = packet_recv_ptr->total_size;
+    void *sendbuf;
 
     for (uint8_t port_num = 0; port_num < node_config.num_neighbors;
          ++port_num) {
         if (port_num != port_recv && port_open[port_num]) {
             print("forward lsa update to port %d(node %d)", port_num,
                   neighbor_addrs[port_num]);
-
-            ret = mixnet_send_loop(myhandle, port_num, packet_recv_ptr);
+            sendbuf = malloc(sizeof(total_size));
+            memcpy(sendbuf, packet_recv_ptr, total_size);
+            ret = mixnet_send_loop(myhandle, port_num, sendbuf);
             if (ret < 0) {
                 return -1;
             }
@@ -187,13 +147,6 @@ int lsa_broadcast() {
     need_free = false;
 
     return 0;
-}
-
-void lsa_add_neighbors() {
-    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
-        graph_add_edge(g, node_config.node_addr, neighbor_addrs[port],
-                       node_config.link_costs[port]);
-    }
 }
 
 void lsa_update_status() {
@@ -206,14 +159,16 @@ void lsa_update_status() {
             }
         }
 
-        if (flag) {
-            lsa_status = LSA_ADD_NEIGHBORS_AND_SEND;
-        }
+        if (flag)
+            lsa_status = LSA_ADD_AND_SEND_NEIGHBORS;
     }
 
-    if (lsa_status == LSA_ADD_NEIGHBORS_AND_SEND) {
+    if (lsa_status == LSA_ADD_AND_SEND_NEIGHBORS) {
         lsa_add_neighbors();
-        lsa_send();
+        lsa_send_neighbors();
         lsa_status = LSA_CONSTRUCT;
     }
+
+    if (lsa_status == LSA_CONSTRUCT && g->open_edges == 0)
+        lsa_status = LSA_RUN;
 }
