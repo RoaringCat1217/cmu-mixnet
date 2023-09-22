@@ -19,6 +19,7 @@ void logger_init(bool turn_on, mixnet_address node_addr) {
         sprintf(filename, "./logs/node_%d.csv", node);
         out = fopen(filename, "w+");
         fprintf(out, "node address|timestamp|msg\n");
+        fflush(out);
     }
 }
 
@@ -31,6 +32,7 @@ void print(const char *format, ...) {
         vfprintf(out, format, args);
         fprintf(out, "\n");
         va_end(args);
+        fflush(out);
     }
 }
 
@@ -43,6 +45,7 @@ void print_err(const char *format, ...) {
         vfprintf(out, format, args);
         fprintf(out, "\n");
         va_end(args);
+        fflush(out);
     }
 }
 

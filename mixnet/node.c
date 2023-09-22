@@ -41,8 +41,7 @@ void init_node() {
         malloc(node_config.mixing_factor * sizeof(port_and_packet *));
 
     lsa_init();
-
-    logger_init(false, node_config.node_addr);
+    logger_init(true, node_config.node_addr);
     print("node initialized, %d neighbors", node_config.num_neighbors);
 }
 
@@ -66,7 +65,6 @@ void free_node() {
 
 void run_node(void *const handle, volatile bool *const keep_running,
               const struct mixnet_node_config c) {
-
     myhandle = handle;
     node_config = c;
     print("%d neighbors", node_config.num_neighbors);

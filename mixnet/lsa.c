@@ -33,7 +33,7 @@ void lsa_add_neighbors() {
     }
 }
 
-void lsa_send_neighbors() {
+void lsa_flood() {
     uint16_t total_size =
         sizeof(mixnet_packet) + sizeof(mixnet_packet_lsa) +
         node_config.num_neighbors * sizeof(mixnet_lsa_link_params);
@@ -55,17 +55,20 @@ void lsa_send_neighbors() {
     }
 
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
-        if (port_open[port])
+        if (port_open[port]) {
             mixnet_send_loop(myhandle, port, mixnet_header);
+        }
     }
 }
 
 int lsa_update(mixnet_packet_lsa *lsa_packet) {
     int n = lsa_packet->neighbor_count;
 
-    if (g->nodes[lsa_packet->node_address] != NULL)
+    if (g->nodes[lsa_packet->node_address] != NULL) {
         print_err("received duplicate LSA packets from %d",
                   lsa_packet->node_address);
+    }
+
     graph_add_node(g, lsa_packet->node_address);
 
     for (int i = 0; i < n; ++i) {
@@ -84,8 +87,11 @@ int lsa_update(mixnet_packet_lsa *lsa_packet) {
         ll_append(shortest_paths[node_config.node_addr]->route,
                   node_config.node_addr);
         node *n = graph_get_node(g, node_config.node_addr);
-        for (uint32_t i = 0; i < n->n_neighbors; i++)
+
+        for (uint32_t i = 0; i < n->n_neighbors; i++) {
             pq_insert(pq, n->costs[i], node_config.node_addr, n->neighbors[i]);
+        }
+
         while (!pq_empty(pq)) {
             priority_queue_entry front = pq_pop(pq);
             uint16_t cost = front.cost;
@@ -159,16 +165,18 @@ void lsa_update_status() {
             }
         }
 
-        if (flag)
-            lsa_status = LSA_ADD_AND_SEND_NEIGHBORS;
+        if (flag) {
+            lsa_status = LSA_FLOOD;
+        }
     }
 
-    if (lsa_status == LSA_ADD_AND_SEND_NEIGHBORS) {
+    if (lsa_status == LSA_FLOOD) {
         lsa_add_neighbors();
-        lsa_send_neighbors();
+        lsa_flood();
         lsa_status = LSA_CONSTRUCT;
     }
 
-    if (lsa_status == LSA_CONSTRUCT && g->open_edges == 0)
+    if (lsa_status == LSA_CONSTRUCT && g->open_edges == 0) {
         lsa_status = LSA_RUN;
+    }
 }
