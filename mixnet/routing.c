@@ -150,6 +150,7 @@ int data_send(mixnet_packet_routing_header *header) {
     uint16_t data_size = packet_recv_ptr->total_size - old_offset;
 
     char *sendbuf = malloc(total_size);
+
     mixnet_packet *mixnet_header = (mixnet_packet *)sendbuf;
     mixnet_header->total_size = total_size;
     mixnet_header->type = PACKET_TYPE_DATA;

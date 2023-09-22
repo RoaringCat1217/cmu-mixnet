@@ -8,6 +8,7 @@
 #include <string.h>
 
 void lsa_send();
+void lsa_add_neighbors();
 
 // init LSA states and structures ONLY AFTER neighbor discovery
 void lsa_init() {
@@ -15,9 +16,6 @@ void lsa_init() {
     memset(shortest_paths, 0, sizeof(path *) * MAX_NODES);
     g = graph_init();
     graph_add_node(g, node_config.node_addr);
-    for (uint8_t port = 0; port < node_config.num_neighbors; port++)
-        graph_add_edge(g, node_config.node_addr, neighbor_addrs[port],
-                       node_config.link_costs[port]);
 }
 
 void lsa_free() {
@@ -30,7 +28,31 @@ void lsa_free() {
     graph_free(g);
 }
 
-void lsa_send() {}
+void lsa_send() {
+    uint16_t total_size =
+        sizeof(mixnet_packet) + sizeof(mixnet_packet_lsa) +
+        node_config.num_neighbors * sizeof(mixnet_lsa_link_params);
+
+    char *sendbuf = malloc(total_size);
+
+    mixnet_packet *mixnet_header = (mixnet_packet *)sendbuf;
+    mixnet_header->total_size = total_size;
+    mixnet_header->type = PACKET_TYPE_LSA;
+
+    mixnet_packet_lsa *payloadp =
+        (mixnet_packet_lsa *)(sendbuf + sizeof(mixnet_packet));
+    payloadp->node_address = node_config.node_addr;
+    payloadp->neighbor_count = node_config.num_neighbors;
+    for (int i = 0; i < node_config.num_neighbors; ++i) {
+        payloadp->links[i] =
+            (mixnet_lsa_link_params){.neighbor_mixaddr = neighbor_addrs[i],
+                                     .cost = node_config.link_costs[i]};
+    }
+
+    for (int i = 0; i < node_config.num_neighbors; ++i) {
+        mixnet_send_loop(myhandle, i, mixnet_header);
+    }
+}
 
 int lsa_update(mixnet_packet_lsa *lsa_packet) {
     int n = lsa_packet->neighbor_count;
@@ -167,6 +189,13 @@ int lsa_broadcast() {
     return 0;
 }
 
+void lsa_add_neighbors() {
+    for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
+        graph_add_edge(g, node_config.node_addr, neighbor_addrs[port],
+                       node_config.link_costs[port]);
+    }
+}
+
 void lsa_update_status() {
     if (lsa_status == LSA_NEIGHBOR_DISCOVERY) {
         bool flag = true;
@@ -178,12 +207,12 @@ void lsa_update_status() {
         }
 
         if (flag) {
-            lsa_status = LSA_INIT_AND_SEND;
+            lsa_status = LSA_ADD_NEIGHBORS_AND_SEND;
         }
     }
 
-    if (lsa_status == LSA_INIT_AND_SEND) {
-        lsa_init();
+    if (lsa_status == LSA_ADD_NEIGHBORS_AND_SEND) {
+        lsa_add_neighbors();
         lsa_send();
         lsa_status = LSA_CONSTRUCT;
     }
