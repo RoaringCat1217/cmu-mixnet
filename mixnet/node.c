@@ -52,6 +52,13 @@ void free_node() {
 
     lsa_free();
 
+    for (int i = 0; i < node_config.mixing_factor; ++i) {
+        if (pending_packets[i] != NULL) {
+            free(pending_packets[i]);
+        }
+    }
+    free(pending_packets);
+
     logger_end();
 }
 
@@ -199,6 +206,7 @@ int send_all_pending_packets() {
             return -1;
         }
         free(pending_packets[i]);
+        pending_packets[i] = NULL;
     }
 
     return 0;
