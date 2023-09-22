@@ -74,4 +74,12 @@ typedef struct path {
 path *path_init(mixnet_address dest);
 void path_free(path *p);
 
+typedef struct port_and_packet {
+    uint8_t port;
+    mixnet_packet *packet;
+} port_and_packet;
+
+int find_port(mixnet_address target_addr, mixnet_address *neighbor_addrs,
+              uint16_t num_neighbors);
+
 #endif

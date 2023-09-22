@@ -185,3 +185,13 @@ void path_free(path *p) {
     ll_free(p->route);
     free(p);
 }
+
+int find_port(mixnet_address target_addr, mixnet_address *neighbor_addrs,
+              uint16_t num_neighbors) {
+    for (uint16_t i = 0; i < num_neighbors; ++i) {
+        if (neighbor_addrs[i] == target_addr) {
+            return i;
+        }
+    }
+    return -1;
+}

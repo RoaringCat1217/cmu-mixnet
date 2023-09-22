@@ -24,6 +24,7 @@ void free_node();
 void run_node(void *const handle, volatile bool *const keep_running,
               const struct mixnet_node_config c);
 int send_to_user();
+int send_all_pending_packets();
 
 #ifdef __cplusplus
 }

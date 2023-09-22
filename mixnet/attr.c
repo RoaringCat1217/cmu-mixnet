@@ -19,6 +19,10 @@ unsigned long timer;
 graph *g;
 path **shortest_paths;
 
+// routing
+uint16_t curr_mixing_count;
+port_and_packet **pending_packets;
+
 // receive packets
 uint8_t port_recv;
 mixnet_packet *packet_recv_ptr;

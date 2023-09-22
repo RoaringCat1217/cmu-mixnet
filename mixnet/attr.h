@@ -30,6 +30,10 @@ extern unsigned long timer;
 extern graph *g;
 extern path **shortest_paths;
 
+// routing
+extern uint16_t curr_mixing_count;
+extern port_and_packet **pending_packets;
+
 // receive packets
 extern uint8_t port_recv;
 extern mixnet_packet *packet_recv_ptr;

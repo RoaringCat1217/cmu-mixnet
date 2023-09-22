@@ -36,6 +36,9 @@ void init_node() {
     lsa_status = 0;
     stp_nexthop = PORT_NULL;
     timer = 0;
+    curr_mixing_count = 0;
+    pending_packets =
+        malloc(node_config.mixing_factor * sizeof(port_and_packet *));
 
     logger_init(false, node_config.node_addr);
     print("node initialized, %d neighbors", node_config.num_neighbors);
@@ -78,12 +81,9 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
-                    if (routing_mix() < 0) {
-                        print_err("received from user, error in routing_mix");
-                    }
-                    if (routing_forward() < 0) {
-                        print_err(
-                            "received from user, error in routing_forward");
+                    if (routing_forward(packet_recv_ptr->payload) < 0) {
+                        print_err("received from neighbors, error in "
+                                  "routing_forward");
                     }
                     break;
                 default:
@@ -148,11 +148,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
                             print_err("error in send_to_user");
                         }
                     } else {
-                        if (routing_mix() < 0) {
-                            print_err("received from neighbors, error in "
-                                      "routing_mix");
-                        }
-                        if (routing_forward() < 0) {
+                        if (routing_forward(packet_recv_ptr->payload) < 0) {
                             print_err("received from neighbors, error in "
                                       "routing_forward");
                         }
@@ -166,6 +162,15 @@ void run_node(void *const handle, volatile bool *const keep_running,
             if (need_free) {
                 free(packet_recv_ptr);
             }
+        }
+
+        if (curr_mixing_count == node_config.mixing_factor) {
+            if (send_all_pending_packets() < 0) {
+                print_err("failed to send all pending packets");
+            }
+            curr_mixing_count = 0;
+        } else {
+            curr_mixing_count++;
         }
 
         if (stp_check_timer() < 0) {
@@ -182,6 +187,18 @@ int send_to_user() {
     if (mixnet_send_loop(myhandle, node_config.num_neighbors, packet_recv_ptr) <
         0) {
         return -1;
+    }
+
+    return 0;
+}
+
+int send_all_pending_packets() {
+    for (int i = 0; i < node_config.mixing_factor; ++i) {
+        if (mixnet_send_loop(myhandle, pending_packets[i]->port,
+                             pending_packets[i]->packet) < 0) {
+            return -1;
+        }
+        free(pending_packets[i]);
     }
 
     return 0;
