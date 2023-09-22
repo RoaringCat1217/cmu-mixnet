@@ -162,7 +162,6 @@ void run_node(void *const handle, volatile bool *const keep_running,
                                           packet_recv_ptr->payload) < 0) {
                             print_err("error in ping_recv");
                         }
-
                         if (send_to_user() < 0) {
                             print_err("error in send_to_user");
                         }
@@ -179,7 +178,6 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     if (((mixnet_packet_routing_header *)
                              packet_recv_ptr->payload)
                             ->dst_address == node_config.node_addr) {
-
                         if (send_to_user() < 0) {
                             print_err("error in send_to_user");
                         }
