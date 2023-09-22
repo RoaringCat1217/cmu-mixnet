@@ -11,9 +11,7 @@
 #ifndef MIXNET_NODE_H_
 #define MIXNET_NODE_H_
 
-#include "address.h"
 #include "config.h"
-#include "packet.h"
 
 #include <stdbool.h>
 

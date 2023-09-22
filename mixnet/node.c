@@ -72,9 +72,9 @@ void run_node(void *const handle, volatile bool *const keep_running,
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_FLOOD:
                     print("received a FLOOD packet from user", port_recv);
-                    if (stp_flood() < 0)
+                    if (stp_flood() < 0) {
                         print_err("received from user, error in stp_flood");
-
+                    }
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
@@ -90,22 +90,19 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     print_err("wrong packet type received");
                 }
             } else {
-                uint16_t dest_port = 0;
-                // char *p = &dest;
-                // p[0] = packet_recv_ptr->payload[2];
-                // p[1] = packet_recv_ptr->payload[3];
-
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
-                    print("received a STP packet from port %d(node %d)",
+                    print("received a STP packet from port %d (node %d)",
                           port_recv, neighbor_addrs[port_recv]);
                     if (stp_recv(
-                            (mixnet_packet_stp *)packet_recv_ptr->payload) < 0)
+                            (mixnet_packet_stp *)packet_recv_ptr->payload) <
+                        0) {
                         print_err("error in stp_recv");
+                    }
                     break;
                 case PACKET_TYPE_LSA:
                     if (port_open[port_recv]) {
-                        print("received a LSA packet from port %d(node %d)",
+                        print("received a LSA packet from port %d (node %d)",
                               port_recv, neighbor_addrs[port_recv]);
 
                         if (lsa_update(
@@ -120,14 +117,14 @@ void run_node(void *const handle, volatile bool *const keep_running,
                                       "lsa_broadcast");
                         }
                     } else {
-                        print("received a LSA packet from port %d(node %d), "
+                        print("received a LSA packet from port %d (node %d), "
                               "ignored",
                               port_recv, neighbor_addrs[port_recv]);
                     }
                     break;
                 case PACKET_TYPE_FLOOD:
                     if (port_open[port_recv]) {
-                        print("received a FLOOD packet from port %d(node %d)",
+                        print("received a FLOOD packet from port %d (node %d)",
                               port_recv, neighbor_addrs[port_recv]);
                         if (send_to_user() < 0) {
                             print_err("error in send_to_user");
@@ -137,15 +134,19 @@ void run_node(void *const handle, volatile bool *const keep_running,
                                 "received from neighbors, error in stp_flood");
                         }
                     } else {
-                        print("received a FLOOD packet from port %d(node %d), "
+                        print("received a FLOOD packet from port %d (node %d), "
                               "ignored",
                               port_recv, neighbor_addrs[port_recv]);
                     }
                     break;
                 case PACKET_TYPE_PING:
                 case PACKET_TYPE_DATA:
-                    if (dest_port == node_config.node_addr) {
-                        send_to_user();
+                    if (((mixnet_packet_routing_header *)
+                             packet_recv_ptr->payload)
+                            ->dst_address == node_config.node_addr) {
+                        if (send_to_user() < 0) {
+                            print_err("error in send_to_user");
+                        }
                     } else {
                         if (routing_mix() < 0) {
                             print_err("received from neighbors, error in "
@@ -167,8 +168,9 @@ void run_node(void *const handle, volatile bool *const keep_running,
             }
         }
 
-        if (stp_check_timer() < 0)
-            print_err("error in check_timer");
+        if (stp_check_timer() < 0) {
+            print_err("error in stp_check_timer");
+        }
     }
 
     free_node();
