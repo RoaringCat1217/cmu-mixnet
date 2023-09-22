@@ -2,6 +2,8 @@
 #include "packet.h"
 #include "utils.h"
 
+void pack_pending_packet(uint8_t port, mixnet_packet *headerp);
+
 int routing_forward(char *payload) {
     mixnet_packet_routing_header *routing_header =
         (mixnet_packet_routing_header *)payload;
@@ -24,7 +26,14 @@ int routing_forward(char *payload) {
     pending_packet->port = port;
     pending_packet->packet = headerp;
 
-    pending_packets[curr_hop_index] = pending_packet;
+    pending_packets[curr_mixing_count] = pending_packet;
 
     return 0;
+}
+
+void pack_pending_packet(uint8_t port, mixnet_packet *headerp) {
+    port_and_packet *pending_packet = malloc(sizeof(port_and_packet));
+    pending_packet->port = port;
+    pending_packet->packet = headerp;
+    pending_packets[curr_mixing_count] = pending_packet;
 }
