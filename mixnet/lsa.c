@@ -1,9 +1,13 @@
+#include "lsa.h"
 #include "attr.h"
 #include "logger.h"
 #include "packet.h"
 #include "utils.h"
 
+#include <stdbool.h>
 #include <string.h>
+
+void lsa_send();
 
 // init LSA states and structures ONLY AFTER neighbor discovery
 void lsa_init() {
@@ -26,6 +30,8 @@ void lsa_free() {
     graph_free(g);
 }
 
+void lsa_send() {}
+
 int lsa_update(mixnet_packet_lsa *lsa_packet) {
     int n = lsa_packet->neighbor_count;
 
@@ -37,7 +43,7 @@ int lsa_update(mixnet_packet_lsa *lsa_packet) {
                        link.cost);
     }
 
-    if (g->open_edges == 0) {
+    if (g->open_edges == 0 && lsa_status == LSA_CONSTRUCT) {
         // graph is complete, run dijkstra and complete shortest_paths
         priority_queue *pq = pq_init(less);
         shortest_paths[node_config.node_addr] =
@@ -82,6 +88,8 @@ int lsa_update(mixnet_packet_lsa *lsa_packet) {
             }
         }
         pq_free(pq);
+
+        lsa_status = LSA_RUN;
     }
 
     return 0;
@@ -159,3 +167,24 @@ int lsa_broadcast() {
     return 0;
 }
 
+void lsa_update_status() {
+    if (lsa_status == LSA_NEIGHBOR_DISCOVERY) {
+        bool flag = true;
+        for (int i = 0; i < node_config.num_neighbors; ++i) {
+            if (neighbor_addrs[i] == ADDR_UNK) {
+                flag = false;
+                break;
+            }
+        }
+
+        if (flag) {
+            lsa_status = LSA_INIT_AND_SEND;
+        }
+    }
+
+    if (lsa_status == LSA_INIT_AND_SEND) {
+        lsa_init();
+        lsa_send();
+        lsa_status = LSA_CONSTRUCT;
+    }
+}

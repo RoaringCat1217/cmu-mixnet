@@ -33,7 +33,7 @@ void init_node() {
 
     stp_curr_state =
         (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
-    lsa_status = 0;
+    lsa_status = LSA_NEIGHBOR_DISCOVERY;
     stp_nexthop = PORT_NULL;
     timer = 0;
     curr_mixing_count = 0;
@@ -87,13 +87,17 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     }
                     break;
                 case PACKET_TYPE_PING:
-                    ping_recv((mixnet_packet_routing_header *)
-                                  packet_recv_ptr->payload);
+                    if (ping_recv((mixnet_packet_routing_header *)
+                                      packet_recv_ptr->payload)) {
+                        print_err("received from neighbors, error in "
+                                  "ping_recv");
+                    }
                     break;
                 case PACKET_TYPE_DATA:
-                    if (routing_forward(packet_recv_ptr->payload) < 0) {
+                    if (data_recv((mixnet_packet_routing_header *)
+                                      packet_recv_ptr->payload)) {
                         print_err("received from neighbors, error in "
-                                  "routing_forward");
+                                  "data_recv");
                     }
                     break;
                 default:
@@ -150,14 +154,32 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     }
                     break;
                 case PACKET_TYPE_PING:
-                    ping_recv((mixnet_packet_routing_header *)
-                                  packet_recv_ptr->payload);
-                    send_to_user();
+                    if (((mixnet_packet_routing_header *)
+                             packet_recv_ptr->payload)
+                            ->dst_address == node_config.node_addr) {
+
+                        if (ping_recv((mixnet_packet_routing_header *)
+                                          packet_recv_ptr->payload) < 0) {
+                            print_err("error in ping_recv");
+                        }
+
+                        if (send_to_user() < 0) {
+                            print_err("error in send_to_user");
+                        }
+                    } else {
+                        if (routing_forward(packet_recv_ptr->payload) < 0) {
+                            print_err("received from neighbors, error in "
+                                      "routing_forward");
+                        }
+                    }
+                    break;
+
                     break;
                 case PACKET_TYPE_DATA:
                     if (((mixnet_packet_routing_header *)
                              packet_recv_ptr->payload)
                             ->dst_address == node_config.node_addr) {
+
                         if (send_to_user() < 0) {
                             print_err("error in send_to_user");
                         }
@@ -190,6 +212,8 @@ void run_node(void *const handle, volatile bool *const keep_running,
         if (stp_check_timer() < 0) {
             print_err("error in stp_check_timer");
         }
+
+        lsa_update_status();
     }
 
     free_node();

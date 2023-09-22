@@ -31,7 +31,7 @@ int routing_forward(char *payload) {
 int ping_send(mixnet_packet_routing_header *header, bool type) {
     if (type == PING_REQUEST) {
         mixnet_address dst = header->dst_address;
-        path *routing_path;
+        path *routing_path = NULL;
         if (node_config.do_random_routing) {
             // TODO: get a random route
         } else {
@@ -123,16 +123,17 @@ int ping_send(mixnet_packet_routing_header *header, bool type) {
 }
 
 int ping_recv(mixnet_packet_routing_header *header) {
-    if (port_recv == node_config.num_neighbors)
+    if (port_recv == node_config.num_neighbors) {
         ping_send(header, PING_REQUEST);
-    else
+    } else {
         ping_send(header, PING_RESPONSE);
+    }
     return 0;
 }
 
 int data_send(mixnet_packet_routing_header *header) {
     mixnet_address dst = header->dst_address;
-    path *routing_path;
+    path *routing_path = NULL;
     if (node_config.do_random_routing) {
         // TODO: get a random route
     } else {
@@ -165,13 +166,23 @@ int data_send(mixnet_packet_routing_header *header) {
         routing_header->route[i++] = ptr->node_addr;
     }
 
-    memcpy(((char *)sendbuf) + new_offset, ((char *)sendbuf) + new_offset,
-           data_size);
+    char *dest_offset_ptr = ((char *)packet_recv_ptr) + new_offset;
+    char *src_offset_ptr = ((char *)sendbuf) + new_offset;
+
+    memcpy(dest_offset_ptr, src_offset_ptr, data_size);
 
     pack_pending_packet(routing_path->sendport, mixnet_header);
 
     if (node_config.do_random_routing) {
         path_free(routing_path);
+    }
+
+    return 0;
+}
+
+int data_recv(mixnet_packet_routing_header *header) {
+    if (port_recv == node_config.num_neighbors) {
+        data_send(header);
     }
 
     return 0;
