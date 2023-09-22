@@ -22,11 +22,7 @@ int routing_forward(char *payload) {
                                          sizeof(mixnet_packet));
     new_routing_header->hop_index = curr_hop_index;
 
-    port_and_packet *pending_packet = malloc(sizeof(port_and_packet));
-    pending_packet->port = port;
-    pending_packet->packet = headerp;
-
-    pending_packets[curr_mixing_count] = pending_packet;
+    pack_pending_packet(port, headerp);
 
     return 0;
 }
