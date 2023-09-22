@@ -28,13 +28,6 @@ int routing_forward(char *payload) {
     return 0;
 }
 
-void pack_pending_packet(uint8_t port, mixnet_packet *headerp) {
-    port_and_packet *pending_packet = malloc(sizeof(port_and_packet));
-    pending_packet->port = port;
-    pending_packet->packet = headerp;
-    pending_packets[curr_mixing_count] = pending_packet;
-}
-
 int ping_send(mixnet_packet_routing_header *header, bool type) {
     mixnet_address dst = header->dst_address;
     path *routing_path;
@@ -80,7 +73,56 @@ int ping_send(mixnet_packet_routing_header *header, bool type) {
     return 0;
 }
 
-int data_send() {
+int data_send(mixnet_packet_routing_header *header) {
+    mixnet_address dst = header->dst_address;
+    path *routing_path;
+    if (node_config.do_random_routing) {
+        // TODO: get a random route
+    } else {
+        routing_path = shortest_paths[dst];
+    }
+    linkedlist *route = routing_path->route;
+    uint16_t total_size = packet_recv_ptr->total_size +
+                          (route->size - 2) * sizeof(mixnet_address);
+    uint16_t old_offset =
+        sizeof(mixnet_packet) + sizeof(mixnet_packet_routing_header);
+    uint16_t new_offset = sizeof(mixnet_packet) +
+                          sizeof(mixnet_packet_routing_header) +
+                          (route->size - 2) * sizeof(mixnet_address);
+    uint16_t data_size = packet_recv_ptr->total_size - old_offset;
+
+    char *sendbuf = malloc(total_size);
+    mixnet_packet *mixnet_header = (mixnet_packet *)sendbuf;
+    mixnet_header->total_size = total_size;
+    mixnet_header->type = PACKET_TYPE_DATA;
+
+    mixnet_packet_routing_header *routing_header =
+        (mixnet_packet_routing_header *)(sendbuf + sizeof(mixnet_packet));
+    routing_header->src_address = node_config.node_addr;
+    routing_header->dst_address = dst;
+    routing_header->route_length = (uint16_t)(route->size - 2);
+    routing_header->hop_index = 0;
+    int i = 0;
+    for (ll_node *ptr = route->head->next; ptr != route->tail;
+         ptr = ptr->next) {
+        routing_header->route[i++] = ptr->node_addr;
+    }
+
+    memcpy(((char *)sendbuf) + new_offset, ((char *)sendbuf) + new_offset,
+           data_size);
+
+    pack_pending_packet(routing_path->sendport, mixnet_header);
+
+    if (node_config.do_random_routing) {
+        path_free(routing_path);
+    }
 
     return 0;
+}
+
+void pack_pending_packet(uint8_t port, mixnet_packet *headerp) {
+    port_and_packet *pending_packet = malloc(sizeof(port_and_packet));
+    pending_packet->port = port;
+    pending_packet->packet = headerp;
+    pending_packets[curr_mixing_count] = pending_packet;
 }
