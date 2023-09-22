@@ -194,4 +194,5 @@ void pack_pending_packet(uint8_t port, mixnet_packet *headerp) {
     pending_packet->port = port;
     pending_packet->packet = headerp;
     pending_packets[curr_mixing_count] = pending_packet;
+    curr_mixing_count++;
 }

@@ -196,12 +196,12 @@ void run_node(void *const handle, volatile bool *const keep_running,
         }
 
         if (curr_mixing_count == node_config.mixing_factor) {
+            print("curr_mixing_count=%d, node_config.mixing_factor=%d",
+                  curr_mixing_count, node_config.mixing_factor);
             if (send_all_pending_packets() < 0) {
                 print_err("failed to send all pending packets");
             }
             curr_mixing_count = 0;
-        } else {
-            curr_mixing_count++;
         }
 
         if (stp_check_timer() < 0) {
