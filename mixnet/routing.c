@@ -29,47 +29,104 @@ int routing_forward(char *payload) {
 }
 
 int ping_send(mixnet_packet_routing_header *header, bool type) {
-    mixnet_address dst = header->dst_address;
-    path *routing_path;
-    if (node_config.do_random_routing) {
-        // TODO: get a random route
+    if (type == PING_REQUEST) {
+        mixnet_address dst = header->dst_address;
+        path *routing_path;
+        if (node_config.do_random_routing) {
+            // TODO: get a random route
+        } else {
+            routing_path = shortest_paths[dst];
+        }
+        linkedlist *route = routing_path->route;
+        uint16_t total_size = sizeof(mixnet_packet) +
+                              sizeof(mixnet_packet_routing_header) +
+                              (route->size - 2) * sizeof(mixnet_address) +
+                              sizeof(mixnet_packet_ping);
+        char *sendbuf = malloc(total_size);
+
+        mixnet_packet *mixnet_header = (mixnet_packet *)sendbuf;
+        mixnet_header->total_size = total_size;
+        mixnet_header->type = PACKET_TYPE_PING;
+
+        mixnet_packet_routing_header *routing_header =
+            (mixnet_packet_routing_header *)(sendbuf + sizeof(mixnet_packet));
+        routing_header->src_address = node_config.node_addr;
+        routing_header->dst_address = dst;
+        routing_header->route_length = (uint16_t)(route->size - 2);
+        routing_header->hop_index = 0;
+        int i = 0;
+        for (ll_node *ptr = route->head->next; ptr != route->tail;
+             ptr = ptr->next) {
+            routing_header->route[i++] = ptr->node_addr;
+        }
+
+        mixnet_packet_ping *ping =
+            (mixnet_packet_ping *)(sendbuf + sizeof(mixnet_packet) +
+                                   sizeof(mixnet_packet_routing_header) +
+                                   (route->size - 2) * sizeof(mixnet_address));
+        mixnet_packet_ping *ping_recv =
+            (mixnet_packet_ping *)((char *)header +
+                                   sizeof(mixnet_packet_routing_header));
+        ping->is_request = PING_REQUEST;
+        ping->send_time = ping_recv->send_time;
+
+        pack_pending_packet(routing_path->sendport, mixnet_header);
+
+        if (node_config.do_random_routing) {
+            path_free(routing_path);
+        }
     } else {
-        routing_path = shortest_paths[dst];
+        mixnet_address dst = header->src_address;
+        uint16_t total_size = sizeof(mixnet_packet) +
+                              sizeof(mixnet_packet_routing_header) +
+                              header->route_length * sizeof(mixnet_address) +
+                              sizeof(mixnet_packet_ping);
+        char *sendbuf = malloc(total_size);
+
+        mixnet_packet *mixnet_header = (mixnet_packet *)sendbuf;
+        mixnet_header->total_size = total_size;
+        mixnet_header->type = PACKET_TYPE_PING;
+
+        mixnet_packet_routing_header *routing_header =
+            (mixnet_packet_routing_header *)(sendbuf + sizeof(mixnet_packet));
+        routing_header->src_address = node_config.node_addr;
+        routing_header->dst_address = dst;
+        routing_header->route_length = header->route_length;
+        routing_header->hop_index = 0;
+        for (uint16_t i = 0; i < routing_header->route_length; i++) {
+            routing_header->route[i] =
+                header->route[routing_header->route_length - 1 - i];
+        }
+
+        mixnet_packet_ping *ping =
+            (mixnet_packet_ping *)(sendbuf + sizeof(mixnet_packet) +
+                                   sizeof(mixnet_packet_routing_header) +
+                                   header->route_length *
+                                       sizeof(mixnet_address));
+        mixnet_packet_ping *ping_recv =
+            (mixnet_packet_ping *)((char *)header +
+                                   sizeof(mixnet_packet_routing_header) +
+                                   header->route_length *
+                                       sizeof(mixnet_address));
+        ping->is_request = PING_RESPONSE;
+        ping->send_time = ping_recv->send_time;
+
+        mixnet_address next = routing_header->route[0];
+        uint8_t port = 0;
+        for (port = 0; port < node_config.num_neighbors; port++)
+            if (neighbor_addrs[port] == next)
+                break;
+        pack_pending_packet(port, mixnet_header);
     }
-    linkedlist *route = routing_path->route;
-    uint16_t total_size =
-        sizeof(mixnet_packet) + sizeof(mixnet_packet_routing_header) +
-        (route->size - 2) * sizeof(mixnet_address) + sizeof(mixnet_packet_ping);
-    char *sendbuf = malloc(total_size);
 
-    mixnet_packet *mixnet_header = (mixnet_packet *)sendbuf;
-    mixnet_header->total_size = total_size;
-    mixnet_header->type = PACKET_TYPE_PING;
+    return 0;
+}
 
-    mixnet_packet_routing_header *routing_header =
-        (mixnet_packet_routing_header *)(sendbuf + sizeof(mixnet_packet));
-    routing_header->src_address = node_config.node_addr;
-    routing_header->dst_address = dst;
-    routing_header->route_length = (uint16_t)(route->size - 2);
-    routing_header->hop_index = 0;
-    int i = 0;
-    for (ll_node *ptr = route->head->next; ptr != route->tail;
-         ptr = ptr->next) {
-        routing_header->route[i++] = ptr->node_addr;
-    }
-
-    mixnet_packet_ping *ping =
-        (mixnet_packet_ping *)(sendbuf + sizeof(mixnet_packet) +
-                               sizeof(mixnet_packet_routing_header) +
-                               (route->size - 2) * sizeof(mixnet_address));
-    ping->is_request = type;
-    ping->send_time = get_timestamp(MICROSEC);
-    pack_pending_packet(routing_path->sendport, mixnet_header);
-
-    if (node_config.do_random_routing) {
-        path_free(routing_path);
-    }
-
+int ping_recv(mixnet_packet_routing_header *header) {
+    if (port_recv == node_config.num_neighbors)
+        ping_send(header, PING_REQUEST);
+    else
+        ping_send(header, PING_RESPONSE);
     return 0;
 }
 

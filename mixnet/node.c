@@ -87,7 +87,9 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     }
                     break;
                 case PACKET_TYPE_PING:
-                    (mixnet_packet_routing_header *)packet_recv_ptr->payload;
+                    ping_recv((mixnet_packet_routing_header *)
+                                  packet_recv_ptr->payload);
+                    break;
                 case PACKET_TYPE_DATA:
                     if (routing_forward(packet_recv_ptr->payload) < 0) {
                         print_err("received from neighbors, error in "
@@ -148,6 +150,10 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     }
                     break;
                 case PACKET_TYPE_PING:
+                    ping_recv((mixnet_packet_routing_header *)
+                                  packet_recv_ptr->payload);
+                    send_to_user();
+                    break;
                 case PACKET_TYPE_DATA:
                     if (((mixnet_packet_routing_header *)
                              packet_recv_ptr->payload)

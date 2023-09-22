@@ -14,6 +14,7 @@
 
 int routing_forward(char *payload);
 int ping_send(mixnet_packet_routing_header *header, bool type);
+int ping_recv(mixnet_packet_routing_header *header);
 int data_send();
 
 #endif // ROUTING_H_
