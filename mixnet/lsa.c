@@ -58,7 +58,7 @@ void lsa_flood() {
     }
 
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
-        if (port_open[port]) {
+        if (port_open[port] && neighbor_addrs[port] != ADDR_UNK) {
             char *sendbuf_cp = malloc(total_size);
             memcpy(sendbuf_cp, sendbuf, total_size);
             mixnet_send_loop(myhandle, port, (mixnet_packet *)sendbuf_cp);
@@ -100,7 +100,8 @@ int lsa_broadcast() {
 
     for (uint8_t port_num = 0; port_num < node_config.num_neighbors;
          ++port_num) {
-        if (port_num != port_recv && port_open[port_num]) {
+        if (port_num != port_recv && port_open[port_num] &&
+            neighbor_addrs[port_num] != ADDR_UNK) {
             sendbuf = malloc(total_size);
             memcpy(sendbuf, packet_recv_ptr, total_size);
             ret = mixnet_send_loop(myhandle, port_num, sendbuf);

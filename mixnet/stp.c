@@ -40,16 +40,21 @@ int stp_send() {
             nsent++;
         }
     }
+
     return nsent;
 }
 
 // send STP hello messages to all open ports
 // return the number of packets send, or -1 for error
-int stp_hello() {
+int stp_hello(bool send_back) {
     int nsent = 0;
 
     for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
         if (!port_open[port]) {
+            continue;
+        }
+
+        if (!send_back && port == port_recv) {
             continue;
         }
 
@@ -95,6 +100,10 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
     if (stp_packet->root_address < stp_curr_state.root_address) {
         stp_curr_state.root_address = stp_packet->root_address;
         stp_curr_state.path_length = stp_packet->path_length + 1;
+        for (int i = 0; i < node_config.num_neighbors; ++i) {
+            dist_to_root[i] = INT_MAX;
+        }
+
         dist_to_root[port_recv] = stp_packet->path_length;
         stp_nexthop = port_recv;
         stp_changed = true;
@@ -131,13 +140,25 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
             port_open[port_recv] = false;
     }
 
+    print("current root addr: %d, sender root addr: %d, port_recv: %d, next "
+          "hot: %d",
+          stp_curr_state.root_address, stp_packet->root_address, port_recv,
+          stp_nexthop);
+
+    print("******************port open start******************");
+    for (int i = 0; i < node_config.num_neighbors; ++i) {
+        print("port %d (node %d), open: %d", i, neighbor_addrs[i],
+              port_open[i]);
+    }
+    print("******************port open stop******************");
+
     // copy the root's "hello" message to all other neighbors
     if (stp_curr_state.root_address != node_config.node_addr &&
         stp_packet->root_address == stp_curr_state.root_address &&
         port_recv == stp_nexthop) {
-        if (stp_hello() < 0)
+        if (stp_hello(false) < 0) {
             return -1;
-
+        }
         // reset timer
         timer = get_timestamp(MILLISEC);
     }
@@ -159,7 +180,7 @@ int stp_check_timer() {
 
     if (stp_curr_state.root_address == node_config.node_addr &&
         interval >= node_config.root_hello_interval_ms) {
-        if (stp_hello() < 0) {
+        if (stp_hello(true) < 0) {
             return -1;
         }
         timer = get_timestamp(MILLISEC);
@@ -176,7 +197,7 @@ int stp_check_timer() {
             dist_to_root[port] = INT_MAX;
         }
 
-        if (stp_hello() < 0) {
+        if (stp_hello(true) < 0) {
             return -1;
         }
 

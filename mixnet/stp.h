@@ -4,7 +4,7 @@
 #include "packet.h"
 
 int stp_send();
-int stp_hello();
+int stp_hello(bool send_back);
 int stp_recv(mixnet_packet_stp *stp_packet);
 int stp_check_timer();
 int stp_flood();

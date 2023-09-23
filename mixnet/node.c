@@ -35,10 +35,12 @@ void init_node() {
         (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
     lsa_status = LSA_NEIGHBOR_DISCOVERY;
     stp_nexthop = PORT_NULL;
-    timer = 0;
     curr_mixing_count = 0;
     pending_packets =
         malloc(node_config.mixing_factor * sizeof(port_and_packet *));
+
+    stp_hello(true);
+    timer = get_timestamp(MILLISEC);
 
     lsa_init();
     logger_init(true, node_config.node_addr);
@@ -71,6 +73,8 @@ void run_node(void *const handle, volatile bool *const keep_running,
     init_node();
 
     while (*keep_running) {
+        port_recv = -1;
+        packet_recv_ptr = NULL;
         int received = mixnet_recv(myhandle, &port_recv, &packet_recv_ptr);
         if (received > 0) {
             need_free = true;
@@ -105,8 +109,11 @@ void run_node(void *const handle, volatile bool *const keep_running,
                 // received from network
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
-                    print("received a STP packet from port %d (node %d)",
-                          port_recv, neighbor_addrs[port_recv]);
+                    print("received a STP packet from port %d (node %d) with "
+                          "root %d",
+                          port_recv, neighbor_addrs[port_recv],
+                          ((mixnet_packet_stp *)packet_recv_ptr->payload)
+                              ->root_address);
                     if (stp_recv(
                             (mixnet_packet_stp *)packet_recv_ptr->payload) <
                         0) {
@@ -208,7 +215,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
             print_err("error in stp_check_timer");
         }
 
-        lsa_update_status();
+        // lsa_update_status();
     }
 
     free_node();
