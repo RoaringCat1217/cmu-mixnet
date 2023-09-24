@@ -82,8 +82,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
                 // received from user
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_FLOOD:
-                    print("node %d received a FLOOD packet from user",
-                          node_config.node_addr);
+                    print("received a FLOOD packet from user");
                     if (stp_flood() < 0) {
                         print_err("received from user, error in stp_flood");
                     }
@@ -96,11 +95,12 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     }
                     break;
                 case PACKET_TYPE_DATA:
-                    if (data_recv((mixnet_packet_routing_header *)
-                                      packet_recv_ptr->payload) < 0) {
-                        print_err("received from neighbors, error in "
-                                  "data_recv");
-                    }
+                    print("received a DATA packet to %d from user",
+                          ((mixnet_packet_routing_header *)
+                               packet_recv_ptr->payload)
+                              ->dst_address);
+                    data_recv((mixnet_packet_routing_header *)
+                                  packet_recv_ptr->payload);
                     break;
                 default:
                     print_err("wrong packet type received");
@@ -181,12 +181,22 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     }
                     break;
                 case PACKET_TYPE_DATA:
+                    print("received a DATA packet from %d to %d from port %d "
+                          "(node %d)",
+                          ((mixnet_packet_routing_header *)
+                               packet_recv_ptr->payload)
+                              ->src_address,
+                          ((mixnet_packet_routing_header *)
+                               packet_recv_ptr->payload)
+                              ->dst_address,
+                          port_recv, neighbor_addrs[port_recv]);
                     if (((mixnet_packet_routing_header *)
                              packet_recv_ptr->payload)
                             ->dst_address == node_config.node_addr) {
                         if (send_to_user() < 0) {
                             print_err("error in send_to_user");
                         }
+                        print("sent DATA packet to user");
                     } else {
                         if (routing_forward(packet_recv_ptr->payload) < 0) {
                             print_err("received from neighbors, error in "
@@ -205,7 +215,8 @@ void run_node(void *const handle, volatile bool *const keep_running,
         }
 
         if (curr_mixing_count == node_config.mixing_factor) {
-            print("curr_mixing_count=%d, node_config.mixing_factor=%d",
+            print("curr_mixing_count=node_config.mixing_factor=%d, sending "
+                  "pending packets",
                   curr_mixing_count, node_config.mixing_factor);
             if (send_all_pending_packets() < 0) {
                 print_err("failed to send all pending packets");

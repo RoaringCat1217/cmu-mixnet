@@ -39,7 +39,7 @@ priority_queue *pq_init(bool (*f)(priority_queue_entry, priority_queue_entry)) {
 }
 
 bool pq_empty(priority_queue *pq) {
-    return pq->size > 0;
+    return pq->size == 0;
 }
 
 void pq_insert(priority_queue *pq, uint16_t cost, mixnet_address from,

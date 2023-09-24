@@ -120,7 +120,7 @@ int lsa_broadcast() {
 
 void lsa_dijkstra() {
     // graph is complete, run dijkstra and complete shortest_paths
-    print("graph completed, running dijkstra");
+    print("******************dijkstra begin******************");
     priority_queue *pq = pq_init(less);
     shortest_paths[node_config.node_addr] = path_init(node_config.node_addr);
     shortest_paths[node_config.node_addr]->total_cost = 0;
@@ -164,7 +164,20 @@ void lsa_dijkstra() {
         }
     }
     pq_free(pq);
-    print("dijkstra completed");
+
+    for (int i = 0; i < MAX_NODES; i++) {
+        if (shortest_paths[i] != NULL) {
+            char route_str[512];
+            char *print_head = route_str;
+            for (ll_node *n = shortest_paths[i]->route->head; n != NULL;
+                 n = n->next) {
+                print_head += sprintf(print_head, "%d ", n->node_addr);
+            }
+            print("To %d: %d, route: %s", i, shortest_paths[i]->total_cost,
+                  route_str);
+        }
+    }
+    print("******************dijkstra end******************");
 }
 
 void lsa_update_status() {

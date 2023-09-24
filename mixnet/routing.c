@@ -11,8 +11,14 @@ int routing_forward(char *payload) {
     int curr_hop_index = routing_header->hop_index + 1;
     int total_size = packet_recv_ptr->total_size;
 
-    uint8_t port = find_port(routing_header->route[curr_hop_index],
-                             neighbor_addrs, node_config.num_neighbors);
+    uint8_t port = -1;
+    if (curr_hop_index < routing_header->route_length) {
+        port = find_port(routing_header->route[curr_hop_index], neighbor_addrs,
+                         node_config.num_neighbors);
+    } else {
+        port = find_port(routing_header->dst_address, neighbor_addrs,
+                         node_config.num_neighbors);
+    }
 
     void *sendbuf = malloc(total_size);
     memcpy(sendbuf, packet_recv_ptr, total_size);
@@ -24,6 +30,9 @@ int routing_forward(char *payload) {
     new_routing_header->hop_index = curr_hop_index;
 
     pack_pending_packet(port, headerp);
+
+    print("forwarded packet to port %d (node %d), pushed to queue", port,
+          neighbor_addrs[port]);
 
     return 0;
 }
@@ -161,19 +170,25 @@ int data_send(mixnet_packet_routing_header *header) {
     routing_header->dst_address = dst;
     routing_header->route_length = (uint16_t)(route->size - 2);
     routing_header->hop_index = 0;
+    char route_str[512];
+    char *print_head = route_str;
     int i = 0;
     for (ll_node *ptr = route->head->next; ptr != route->tail;
          ptr = ptr->next) {
         routing_header->route[i++] = ptr->node_addr;
+        print_head += sprintf(print_head, "%d ", ptr->node_addr);
     }
 
-    char *dest_offset_ptr = ((char *)packet_recv_ptr) + new_offset;
-    char *src_offset_ptr = ((char *)sendbuf) + new_offset;
+    char *src_offset_ptr = ((char *)packet_recv_ptr) + old_offset;
+    char *dest_offset_ptr = ((char *)sendbuf) + new_offset;
 
     memcpy(dest_offset_ptr, src_offset_ptr, data_size);
 
     pack_pending_packet(routing_path->sendport, mixnet_header);
 
+    print("added DATA packet with route %s and port %d to queue", route_str,
+          routing_path->sendport);
+    print("packet data: %s", (char *)mixnet_header + new_offset);
     if (node_config.do_random_routing) {
         path_free(routing_path);
     }
