@@ -83,7 +83,8 @@ void run_node(void *const handle, volatile bool *const keep_running,
                 // received from user
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_FLOOD:
-                    print("received a FLOOD packet from user", port_recv);
+                    print("node %d received a FLOOD packet from user",
+                          node_config.node_addr);
                     if (stp_flood() < 0) {
                         print_err("received from user, error in stp_flood");
                     }
@@ -144,8 +145,10 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     break;
                 case PACKET_TYPE_FLOOD:
                     if (port_open[port_recv]) {
-                        print("received a FLOOD packet from port %d (node %d)",
-                              port_recv, neighbor_addrs[port_recv]);
+                        print("node %d received a FLOOD packet from port %d "
+                              "(node %d)",
+                              node_config.node_addr, port_recv,
+                              neighbor_addrs[port_recv]);
                         if (send_to_user() < 0) {
                             print_err("error in send_to_user");
                         }

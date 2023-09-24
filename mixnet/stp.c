@@ -214,8 +214,8 @@ int stp_flood() {
     for (uint8_t port_num = 0; port_num < node_config.num_neighbors;
          ++port_num) {
         if (port_num != port_recv && port_open[port_num]) {
-            print("flood to port %d(node %d)", port_num,
-                  neighbor_addrs[port_num]);
+            print("node %d flood to port %d(node %d)", node_config.node_addr,
+                  port_num, neighbor_addrs[port_num]);
 
             void *sendbuf = malloc(sizeof(mixnet_packet));
             mixnet_packet *headerp = (mixnet_packet *)sendbuf;
