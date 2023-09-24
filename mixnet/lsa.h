@@ -3,7 +3,8 @@
 
 #include "packet.h"
 
-#define LSA_NEIGHBOR_DISCOVERY 1
+#define LSA_NEIGHBOR_DISCOVERY 0
+#define LSA_WAIT 1
 #define LSA_FLOOD 2
 #define LSA_CONSTRUCT 3
 #define LSA_RUN 4

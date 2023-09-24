@@ -18,6 +18,8 @@ unsigned long timer;
 uint8_t lsa_status;
 graph *g;
 path **shortest_paths;
+unsigned long lsa_timer;
+mixnet_address lsa_root;
 
 // routing
 uint16_t curr_mixing_count;

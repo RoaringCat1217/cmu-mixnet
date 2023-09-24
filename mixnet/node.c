@@ -33,7 +33,6 @@ void init_node() {
 
     stp_curr_state =
         (mixnet_packet_stp){node_config.node_addr, 0, node_config.node_addr};
-    lsa_status = LSA_NEIGHBOR_DISCOVERY;
     stp_nexthop = PORT_NULL;
     curr_mixing_count = 0;
     pending_packets =
@@ -218,7 +217,7 @@ void run_node(void *const handle, volatile bool *const keep_running,
             print_err("error in stp_check_timer");
         }
 
-        // lsa_update_status();
+        lsa_update_status();
     }
 
     free_node();

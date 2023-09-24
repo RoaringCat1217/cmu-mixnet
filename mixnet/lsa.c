@@ -14,6 +14,8 @@ void lsa_init() {
     g = graph_init();
     graph_add_node(g, node_config.node_addr);
     lsa_status = LSA_NEIGHBOR_DISCOVERY;
+    lsa_timer = 0;
+    lsa_root = node_config.node_addr;
 }
 
 void lsa_free() {
@@ -167,22 +169,34 @@ void lsa_dijkstra() {
 
 void lsa_update_status() {
     if (lsa_status == LSA_NEIGHBOR_DISCOVERY) {
-        bool flag = true;
-        for (int i = 0; i < node_config.num_neighbors; ++i) {
-            if (neighbor_addrs[i] == ADDR_UNK) {
-                flag = false;
+        bool completed = true;
+        for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
+            if (neighbor_addrs[port] == ADDR_UNK) {
+                completed = false;
                 break;
             }
         }
+        if (completed) {
+            lsa_add_neighbors();
+            lsa_status = LSA_WAIT;
+            lsa_timer = get_timestamp(MILLISEC);
+            lsa_root = stp_curr_state.root_address;
+            print("changed to status LSA_WAIT");
+        }
+    }
 
-        if (flag) {
+    if (lsa_status == LSA_WAIT) {
+        unsigned long now = get_timestamp(MILLISEC);
+        if (lsa_root != stp_curr_state.root_address) {
+            lsa_root = stp_curr_state.root_address;
+            lsa_timer = now;
+        } else if (now - lsa_timer > node_config.reelection_interval_ms) {
             lsa_status = LSA_FLOOD;
             print("changed to status LSA_FLOOD");
         }
     }
 
     if (lsa_status == LSA_FLOOD) {
-        lsa_add_neighbors();
         lsa_flood();
         lsa_status = LSA_CONSTRUCT;
         print("changed to status LSA_CONSTRUCT");

@@ -29,6 +29,8 @@ extern unsigned long timer;
 // lsa
 extern graph *g;
 extern path **shortest_paths;
+extern unsigned long lsa_timer;
+extern mixnet_address lsa_root;
 
 // routing
 extern uint16_t curr_mixing_count;
