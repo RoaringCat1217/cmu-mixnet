@@ -135,7 +135,14 @@ int ping_recv(mixnet_packet_routing_header *header) {
     if (port_recv == node_config.num_neighbors) {
         ping_send(header, PING_REQUEST);
     } else {
-        ping_send(header, PING_RESPONSE);
+        mixnet_packet_ping *ping =
+            (mixnet_packet_ping *)((char *)header +
+                                   sizeof(mixnet_packet_routing_header) +
+                                   header->route_length *
+                                       sizeof(mixnet_address));
+        if (ping->is_request == true) {
+            ping_send(header, PING_RESPONSE);
+        }
     }
     return 0;
 }
