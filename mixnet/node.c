@@ -42,7 +42,7 @@ void init_node() {
     timer = get_timestamp(MILLISEC);
 
     lsa_init();
-    logger_init(true, node_config.node_addr);
+    logger_init(false, node_config.node_addr);
     print("node initialized, %d neighbors", node_config.num_neighbors);
 }
 

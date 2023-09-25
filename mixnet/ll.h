@@ -20,4 +20,4 @@ void ll_copy(linkedlist *dst, linkedlist *src);
 void ll_append(linkedlist *ll, mixnet_address addr);
 void ll_free(linkedlist *ll);
 
-#endif
+#endif // LL_H_

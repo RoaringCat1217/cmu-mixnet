@@ -121,17 +121,17 @@ bool less(priority_queue_entry x, priority_queue_entry y) {
 // node and graph
 
 node *node_init(mixnet_address address) {
-    node *n = (node *)malloc(sizeof(node));
+    node *n = malloc(sizeof(node));
     n->addr = address;
     n->n_neighbors = 0;
     return n;
 }
 
 graph *graph_init() {
-    graph *g = (graph *)malloc(sizeof(graph));
+    graph *g = malloc(sizeof(graph));
     g->n_nodes = 0;
     g->open_edges = 0;
-    g->nodes = (node **)malloc(MAX_NODES * sizeof(node *));
+    g->nodes = malloc(MAX_NODES * sizeof(node *));
     memset(g->nodes, 0, MAX_NODES * sizeof(node *));
     return g;
 }
