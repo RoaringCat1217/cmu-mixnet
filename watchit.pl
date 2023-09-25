@@ -10,6 +10,7 @@ $cmd = $ARGV[0];
 $str = $ARGV[1];
 
 # ./watchit.pl './bin/cp1/testcase_tiebreak_pathlen -a; echo;' '[Testing] FAIL'
+# zip -j submission.zip attr.c attr.h ll.c ll.h logger.c logger.h lsa.c lsa.h node.c node.h routing.c routing.h stp.c stp.h utils.c utils.h
 
 while (1)
 {

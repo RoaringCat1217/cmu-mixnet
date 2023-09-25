@@ -2,5 +2,6 @@
 .vscode-ctags
 build/
 .idea/
+mixnet/submission.zip
 tags
 autograder.zip
