@@ -80,6 +80,10 @@ int ping_send(mixnet_packet_routing_header *header, bool type) {
         ping->send_time = ping_recv->send_time;
 
         pack_pending_packet(routing_path->sendport, mixnet_header);
+        char route_str[512];
+        ll_print(route_str, route->head->next, route->tail);
+        print("added PING packet with route %s and port %d to queue", route_str,
+              routing_path->sendport);
 
         if (node_config.do_random_routing) {
             path_free(routing_path);
@@ -125,7 +129,17 @@ int ping_send(mixnet_packet_routing_header *header, bool type) {
         for (port = 0; port < node_config.num_neighbors; port++)
             if (neighbor_addrs[port] == next)
                 break;
+
         pack_pending_packet(port, mixnet_header);
+
+        char route_str[512];
+        char *print_head = route_str;
+        for (int i = 0; i < routing_header->route_length - 1; i++)
+            print_head += sprintf(print_head, "%d->", routing_header->route[i]);
+        sprintf(print_head, "%d",
+                routing_header->route[routing_header->route_length - 1]);
+        print("added PING packet with route %s and port %d to queue", route_str,
+              port);
     }
 
     return 0;
@@ -135,7 +149,13 @@ int ping_recv(mixnet_packet_routing_header *header) {
     if (port_recv == node_config.num_neighbors) {
         ping_send(header, PING_REQUEST);
     } else {
-        ping_send(header, PING_RESPONSE);
+        mixnet_packet_ping *ping =
+            (mixnet_packet_ping *)((char *)header +
+                                   sizeof(mixnet_packet_routing_header) +
+                                   header->route_length *
+                                       sizeof(mixnet_address));
+        if (ping->is_request)
+            ping_send(header, PING_RESPONSE);
     }
     return 0;
 }
@@ -170,13 +190,10 @@ int data_send(mixnet_packet_routing_header *header) {
     routing_header->dst_address = dst;
     routing_header->route_length = (uint16_t)(route->size - 2);
     routing_header->hop_index = 0;
-    char route_str[512];
-    char *print_head = route_str;
     int i = 0;
     for (ll_node *ptr = route->head->next; ptr != route->tail;
          ptr = ptr->next) {
         routing_header->route[i++] = ptr->node_addr;
-        print_head += sprintf(print_head, "%d ", ptr->node_addr);
     }
 
     char *src_offset_ptr = ((char *)packet_recv_ptr) + old_offset;
@@ -186,9 +203,12 @@ int data_send(mixnet_packet_routing_header *header) {
 
     pack_pending_packet(routing_path->sendport, mixnet_header);
 
+    char route_str[512];
+    ll_print(route_str, route->head->next, route->tail);
     print("added DATA packet with route %s and port %d to queue", route_str,
           routing_path->sendport);
     print("packet data: %s", (char *)mixnet_header + new_offset);
+
     if (node_config.do_random_routing) {
         path_free(routing_path);
     }

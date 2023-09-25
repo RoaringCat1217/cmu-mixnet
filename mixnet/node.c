@@ -88,11 +88,16 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     }
                     break;
                 case PACKET_TYPE_PING:
-                    if (ping_recv((mixnet_packet_routing_header *)
-                                      packet_recv_ptr->payload) < 0) {
-                        print_err("received from neighbors, error in "
-                                  "ping_recv");
-                    }
+                    print("received a PING packet to node %d from "
+                          "user",
+                          ((mixnet_packet_routing_header *)
+                               packet_recv_ptr->payload)
+                              ->src_address,
+                          ((mixnet_packet_routing_header *)
+                               packet_recv_ptr->payload)
+                              ->dst_address);
+                    ping_recv((mixnet_packet_routing_header *)
+                                  packet_recv_ptr->payload);
                     break;
                 case PACKET_TYPE_DATA:
                     print("received a DATA packet to %d from user",
@@ -162,14 +167,20 @@ void run_node(void *const handle, volatile bool *const keep_running,
                     }
                     break;
                 case PACKET_TYPE_PING:
+                    print("received a PING packet from node %d to node %d from "
+                          "port %d (node %d)",
+                          ((mixnet_packet_routing_header *)
+                               packet_recv_ptr->payload)
+                              ->src_address,
+                          ((mixnet_packet_routing_header *)
+                               packet_recv_ptr->payload)
+                              ->dst_address,
+                          port_recv, neighbor_addrs[port_recv]);
                     if (((mixnet_packet_routing_header *)
                              packet_recv_ptr->payload)
                             ->dst_address == node_config.node_addr) {
-
-                        if (ping_recv((mixnet_packet_routing_header *)
-                                          packet_recv_ptr->payload) < 0) {
-                            print_err("error in ping_recv");
-                        }
+                        ping_recv((mixnet_packet_routing_header *)
+                                      packet_recv_ptr->payload);
                         if (send_to_user() < 0) {
                             print_err("error in send_to_user");
                         }

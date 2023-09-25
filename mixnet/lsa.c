@@ -168,11 +168,7 @@ void lsa_dijkstra() {
     for (int i = 0; i < MAX_NODES; i++) {
         if (shortest_paths[i] != NULL) {
             char route_str[512];
-            char *print_head = route_str;
-            for (ll_node *n = shortest_paths[i]->route->head; n != NULL;
-                 n = n->next) {
-                print_head += sprintf(print_head, "%d ", n->node_addr);
-            }
+            ll_print(route_str, shortest_paths[i]->route->head, NULL);
             print("To %d: %d, route: %s", i, shortest_paths[i]->total_cost,
                   route_str);
         }

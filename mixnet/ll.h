@@ -3,6 +3,7 @@
 
 #include "address.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 typedef struct ll_node {
@@ -19,5 +20,6 @@ linkedlist *ll_init();
 void ll_copy(linkedlist *dst, linkedlist *src);
 void ll_append(linkedlist *ll, mixnet_address addr);
 void ll_free(linkedlist *ll);
+void ll_print(char *dst, ll_node *begin, ll_node *end);
 
 #endif

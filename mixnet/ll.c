@@ -59,3 +59,9 @@ void ll_free(linkedlist *ll) {
     }
     free(ll);
 }
+
+void ll_print(char *dst, ll_node *begin, ll_node *end) {
+    dst += sprintf(dst, "%d", begin->node_addr);
+    for (ll_node *n = begin->next; n != end; n = n->next)
+        dst += sprintf(dst, "->%d", n->node_addr);
+}
