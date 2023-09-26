@@ -9,7 +9,7 @@ void pack_pending_packet(uint8_t port, mixnet_packet *headerp);
 void dfs(mixnet_address src, mixnet_address dest, path *p, bool *visited,
          bool *arrived);
 path *get_random_path(mixnet_address src, mixnet_address dest);
-void shuffle(mixnet_address *array, size_t n);
+void shuffle_neighbors(mixnet_address *array, size_t n);
 
 int routing_forward(char *payload) {
     mixnet_packet_routing_header *routing_header =
@@ -225,10 +225,9 @@ void pack_pending_packet(uint8_t port, mixnet_packet *headerp) {
     curr_mixing_count++;
 }
 
-void shuffle(mixnet_address *array, size_t n) {
+void shuffle_neighbors(mixnet_address *array, size_t n) {
     if (n > 1) {
-        size_t i;
-        for (i = 0; i < n - 1; i++) {
+        for (size_t i = 0; i < n - 1; i++) {
             size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
             mixnet_address t = array[j];
             array[j] = array[i];
@@ -248,7 +247,8 @@ void dfs(mixnet_address src, mixnet_address dest, path *p, bool *visited,
     for (uint32_t i = 0; i < g->nodes[src]->n_neighbors; ++i) {
         neighbors[i] = g->nodes[src]->neighbors[i];
     }
-    shuffle(neighbors, g->nodes[src]->n_neighbors);
+
+    shuffle_neighbors(neighbors, g->nodes[src]->n_neighbors);
 
     for (uint32_t i = 0; i < g->nodes[src]->n_neighbors; ++i) {
         if (!visited[neighbors[i]]) {

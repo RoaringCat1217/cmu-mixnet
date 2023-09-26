@@ -7,6 +7,7 @@
 #include "packet.h"
 #include "stdbool.h"
 #include "utils.h"
+
 #include <stdlib.h>
 
 #define PING_REQUEST true
