@@ -40,7 +40,7 @@ void init_node() {
 
     stp_hello(true);
     timer = get_timestamp(MILLISEC);
-    srand(time(NULL)); // randomize the seed
+    srand(timer); // randomize the seed
 
     lsa_init();
     logger_init(false, node_config.node_addr);
