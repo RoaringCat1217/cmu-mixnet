@@ -123,6 +123,7 @@ int stp_recv(mixnet_packet_stp *stp_packet) {
 
     // change port blocking state
     if (stp_changed) {
+        printf("STP state changed at %ld\n", get_timestamp(MILLISEC));
         for (uint8_t port = 0; port < node_config.num_neighbors; port++) {
             if (port == stp_nexthop)
                 port_open[port] = true;

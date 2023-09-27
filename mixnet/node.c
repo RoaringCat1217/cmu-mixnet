@@ -71,7 +71,9 @@ void run_node(void *const handle, volatile bool *const keep_running,
     node_config = c;
     print("%d neighbors", node_config.num_neighbors);
     init_node();
+    int stp_packet_cnt = 0;
 
+    printf("node started running at %ld\n", get_timestamp(MILLISEC));
     while (*keep_running) {
         port_recv = -1;
         packet_recv_ptr = NULL;
@@ -110,6 +112,9 @@ void run_node(void *const handle, volatile bool *const keep_running,
                 // received from network
                 switch (packet_recv_ptr->type) {
                 case PACKET_TYPE_STP:
+                    stp_packet_cnt++;
+                    printf("received %d STP packets in total\n",
+                           stp_packet_cnt);
                     print("received a STP packet from port %d (node %d) with "
                           "root %d",
                           port_recv, neighbor_addrs[port_recv],
